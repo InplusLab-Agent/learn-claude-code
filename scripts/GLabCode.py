@@ -12,18 +12,23 @@ except ImportError:
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from utils.shell import build_system_prompt, run_shell_command
+from utils.shell import get_prompt_system, get_shell_command_result
 
 load_dotenv(override=True)
 
 
-_working_dir = os.getcwd() # Get the current working directory
+working_dir = os.getcwd() # 获取工作区路径
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"),
                    auth_token=os.getenv("ANTHROPIC_AUTH_TOKEN"))
 model = os.environ["MODEL_ID"]
-system = build_system_prompt(_working_dir) 
+system = get_prompt_system(working_dir) 
 
-# ── Tool definition: just bash ────────────────────────────
+
+
+
+
+
+# ── Tool definition: 运行命令行────────────────────────────
 tools = [{
     "name": "bash",
     "description": "Run a shell command.",
@@ -35,8 +40,8 @@ tools = [{
 }]
 
 # ── Tool execution ────────────────────────────────────────
-def run_bash(command: str) -> str:
-    return run_shell_command(command, _working_dir)
+def run_shell(command: str) -> str:
+    return get_shell_command_result(command, working_dir)
 
 
 # ── The core pattern: a while loop that calls tools until the model stops ──
@@ -60,7 +65,7 @@ def agent_loop(messages: list):
             for block in response.content:
                 if block.type == "tool_use":
                     print(f"\033[33m$ {block.input['command']}\033[0m")
-                    output = run_bash(block.input["command"])
+                    output = run_shell(block.input["command"])
                     print(output[:200])
                     results.append({
                         "type": "tool_result",
