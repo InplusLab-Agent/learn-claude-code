@@ -12,18 +12,18 @@ except ImportError:
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from utils.shell import get_prompt_system, get_shell_command_result
+from utils.shell import get_prompt, run_shell_command
+from utils.load_config import config
+from rich import print
 
-load_dotenv(override=True)
+load_dotenv(override=True)  # 读取 .env 文件，把里面的变量加载进系统环境变量。
 
 
-working_dir = os.getcwd() # 获取工作区路径
+cwd = os.getcwd() # 获取工作区路径
 client = Anthropic(base_url=os.getenv("ANTHROPIC_BASE_URL"),
                    auth_token=os.getenv("ANTHROPIC_AUTH_TOKEN"))
-model = os.environ["MODEL_ID"]
-system = get_prompt_system(working_dir) 
-
-
+model = os.getenv("MODEL_ID")
+prompt = get_prompt(cwd) 
 
 
 
@@ -39,33 +39,33 @@ tools = [{
     },
 }]
 
-# ── Tool execution ────────────────────────────────────────
-def run_shell(command: str) -> str:
-    return get_shell_command_result(command, working_dir)
-
-
 # ── The core pattern: a while loop that calls tools until the model stops ──
 def agent_loop(messages: list):
     while True:
         response = client.messages.create(
-            model=model, system=system, messages=messages,
+            model=model, system=prompt, messages=messages,
             tools=tools, max_tokens=8000,
         )
         # Append assistant turn
         messages.append({"role": "assistant", "content": response.content})
 
-        if response.stop_reason != "tool_use":
-            return
-
+        
         # If the model calls a tool, execute it and feed results back, then continue the loop
         if response.stop_reason == "tool_use":
-
             results = []
+            
             # Execute each tool call, collect results
             for block in response.content:
-                if block.type == "tool_use":
-                    print(f"\033[33m$ {block.input['command']}\033[0m")
-                    output = run_shell(block.input["command"])
+                if block.type == "thinking":
+                    if config.get("show_thinking", True): # 是否显示思考过程
+                        print(f"[blue]{block.thinking}[/blue]")
+
+                elif block.type == "tool_use":  
+                    if config.get("show_tool_use", True): # 是否显示工具调用
+                        print(f"[blue]Tool Use:[/blue] [yellow]$ {block.input['command']}[/yellow]")
+                    
+                    # ── Tool execution ────────────────────────────────────────
+                    output = run_shell_command(block.input["command"], cwd)
                     print(output[:200])
                     results.append({
                         "type": "tool_result",
@@ -75,17 +75,17 @@ def agent_loop(messages: list):
 
             # Feed tool results back, loop continues
             messages.append({"role": "user", "content": results})
-
+        else:
+            return 
 
 # ── Entry point ──────────────────────────────────────────
 if __name__ == "__main__":
-    print("s01: Agent Loop")
     print("Hello, What can I do for you? Type 'q' to quit.\n")
 
     history = []
     while True:
         try:
-            query = input("\033[36ms01 >> \033[0m")
+            query = input("\033[36m Input >> \033[0m") #\033[36m 青色；\033[0m 重置颜色
         except (EOFError, KeyboardInterrupt):
             break
         if query.strip().lower() in ("q", "exit", ""):

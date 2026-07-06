@@ -3,7 +3,7 @@ import shutil
 import subprocess
 
 # Tuple 在3.9前后的写法不同，3.9之前是 Tuple[str, List[str]]，3.9及以后是 tuple[str, list[str]]。表示返回的类型。注意这里不要用 ()
-def get_shell_config() -> tuple[str, list[str]]:
+def load_shell_command() -> tuple[str, list[str]]:
     # os.name == "nt" 即为 WinOS，
     if os.name == "nt":
         # NoProfile 不加载用户自己的配置文件，当然也无法使用环境变量。这样的好处是能够提供更干净的环境。
@@ -19,33 +19,33 @@ def get_shell_config() -> tuple[str, list[str]]:
 
 
 # 构造指令执行的提示词，将工作路径、当前工具调用的具体shell_name告诉LLM。
-def get_prompt_system(working_dir: str) -> str:
-    _shell_name_, _ = get_shell_config()
-    return f"You are a coding agent at {working_dir}. Use {_shell_name_} commands to solve tasks. Act, don't explain."
+def get_prompt(cwd: str) -> str:
+    shell, _ = load_shell_command()
+    return f"You are a coding agent at {cwd}. Use {shell} commands to solve tasks. Act, don't explain."
 
 # 优化PowerShell里面的pwd和cd返回字符串并非纯文本的问题（进行指令替换）
-def get_normalized_shell_command(command: str, shell_name: str) -> str:
+def normalized_shell_command(command: str, shell: str) -> str:
     stripped = command.strip()
-    if shell_name == "PowerShell" and stripped in {"pwd", "cd"}:
+    if shell == "PowerShell" and stripped in {"pwd", "cd"}:
         return "Get-Location | Select-Object -ExpandProperty Path"
     return command
 
 
 
 # 运行指令获取结果。
-def get_shell_command_result(command: str, working_dir: str, timeout: int = 120) -> str:
+def run_shell_command(command: str, cwd: str, timeout: int = 120) -> str:
     
     dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
     if any(item in command for item in dangerous):
         return "Error: Dangerous command blocked"
 
-    shell_name, shell_prefix = get_shell_config()
-    command = get_normalized_shell_command(command, shell_name)
+    shell, shell_prefix = load_shell_command()
+    command = normalized_shell_command(command, shell)
 
     try:
         result = subprocess.run(
             [*shell_prefix, command],
-            cwd=working_dir,
+            cwd=cwd,
             capture_output=True,
             text=True,
             timeout=timeout,
