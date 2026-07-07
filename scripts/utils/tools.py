@@ -1,6 +1,7 @@
-import os # 通过python的os模块，可以判断当前操作系统。
+import os  # 通过python的os模块，可以判断当前操作系统。
 import shutil
 import subprocess
+
 
 # Tuple 在3.9前后的写法不同，3.9之前是 Tuple[str, List[str]]，3.9及以后是 tuple[str, list[str]]。表示返回的类型。注意这里不要用 ()
 def load_shell_command() -> tuple[str, list[str]]:
@@ -23,6 +24,7 @@ def get_prompt(cwd: str) -> str:
     shell, _ = load_shell_command()
     return f"You are a coding agent at {cwd}. Use {shell} commands to solve tasks. Act, don't explain."
 
+
 # 优化PowerShell里面的pwd和cd返回字符串并非纯文本的问题（进行指令替换）
 def normalized_shell_command(command: str, shell: str) -> str:
     stripped = command.strip()
@@ -31,10 +33,9 @@ def normalized_shell_command(command: str, shell: str) -> str:
     return command
 
 
-
 # 运行指令获取结果。
-def run_shell_command(command: str, cwd: str, timeout: int = 120) -> str:
-    
+def run_shell(command: str, cwd: str, timeout: int = 120) -> str:
+
     dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
     if any(item in command for item in dangerous):
         return "Error: Dangerous command blocked"
