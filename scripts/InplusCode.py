@@ -14,14 +14,15 @@ except ImportError:
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from utils.tools import get_prompt, run_shell
+from utils.shell import get_prompt, run_shell
 from utils.load_config import config
 from rich import print
 
 load_dotenv(override=True)  # 读取 .env 文件，把里面的变量加载进系统环境变量。
 
 
-cwd = Path.cwd() # 获取工作区路径
+# cwd = Path.cwd()  # 获取工作区路径
+cwd = Path("D:\--UnityProject\RunminG-Lab\learn-claude-code\scripts")
 client = Anthropic(
     base_url=os.getenv("ANTHROPIC_BASE_URL"),
     auth_token=os.getenv("ANTHROPIC_AUTH_TOKEN"),
@@ -46,7 +47,12 @@ def run_bash(command: str) -> str:
 
 def run_read(path: str, limit: int | None = None) -> str:
     try:
-        lines = safe_path(path).read_text().splitlines()
+        try:
+            text = safe_path(path).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            text = safe_path(path).read_text(encoding="gbk", errors="replace")
+        lines = text.splitlines()
+        # lines = safe_path(path).read_text().splitlines()
         if limit and limit < len(lines):
             lines = lines[:limit] + [f"... ({len(lines) - limit} more lines)"]
         return "\n".join(lines)
@@ -67,7 +73,11 @@ def run_write(path: str, content: str) -> str:
 def run_edit(path: str, old_text: str, new_text: str) -> str:
     try:
         file_path = safe_path(path)
-        text = file_path.read_text()
+        # text = file_path.read_text()
+        try:
+            text = file_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            text = file_path.read_text(encoding="gbk", errors="replace")
         if old_text not in text:
             return f"Error: text not found in {path}"
         file_path.write_text(text.replace(old_text, new_text, 1))
