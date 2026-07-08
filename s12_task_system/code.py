@@ -373,4 +373,6 @@ if __name__ == "__main__":
         for block in history[-1]["content"]:
             if getattr(block, "type", None) == "text":
                 print(block.text)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                print(block.get("text", ""))
         print()

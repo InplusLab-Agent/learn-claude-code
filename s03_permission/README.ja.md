@@ -139,7 +139,7 @@ python s03_permission/code.py
 以下のプロンプトを試してみよう：
 
 1. `Create a file called test.txt in the current directory`（そのまま通過するはず）
-2. `Delete all temporary files in /tmp`（bash + rm でゲート 2 が発動）
+2. `Delete the file test.txt`（bash + rm でゲート 2 が発動）
 3. `What files are in the current directory?`（読み取り専用、すべて通過）
 4. `Try to write a file to /etc/something`（作業ディレクトリ外への書き込みでゲート 2 が発動）
 

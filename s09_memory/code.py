@@ -344,8 +344,6 @@ def build_system() -> str:
         "When the user says 'remember' or expresses a clear preference, extract it as a memory."
     )
 
-SYSTEM = build_system()
-
 SUB_SYSTEM = (
     f"You are a coding agent at {WORKDIR}. "
     "Complete the task you were given, then return a concise summary. "
@@ -416,9 +414,9 @@ SUB_TOOLS = [
 ]
 SUB_HANDLERS = {"bash": run_bash, "read_file": run_read, "write_file": run_write}
 
-def spawn_subagent(task: str) -> str:
+def spawn_subagent(description: str) -> str:
     print(f"\n\033[35m[Subagent spawned]\033[0m")
-    messages = [{"role": "user", "content": task}]
+    messages = [{"role": "user", "content": description}]
     for _ in range(30):
         response = client.messages.create(model=MODEL, system=SUB_SYSTEM,
             messages=messages, tools=SUB_TOOLS, max_tokens=8000)
@@ -451,9 +449,38 @@ CONTEXT_LIMIT = 50000; KEEP_RECENT = 3; PERSIST_THRESHOLD = 30000
 
 def estimate_size(msgs): return len(str(msgs))
 
+def _block_type(block):
+    return block.get("type") if isinstance(block, dict) else getattr(block, "type", None)
+
+def _message_has_tool_use(msg):
+    if msg.get("role") != "assistant":
+        return False
+    content = msg.get("content")
+    if not isinstance(content, list):
+        return False
+    return any(_block_type(block) == "tool_use" for block in content)
+
+def _is_tool_result_message(msg):
+    if msg.get("role") != "user":
+        return False
+    content = msg.get("content")
+    if not isinstance(content, list):
+        return False
+    return any(isinstance(block, dict) and block.get("type") == "tool_result" for block in content)
+
 def snip_compact(msgs, mx=50):
     if len(msgs) <= mx: return msgs
-    return msgs[:3] + [{"role": "user", "content": f"[snipped {len(msgs)-mx} msgs]"}] + msgs[-(mx-3):]
+    head_end, tail_start = 3, len(msgs) - (mx - 3)
+    if head_end > 0 and _message_has_tool_use(msgs[head_end - 1]):
+        while head_end < len(msgs) and _is_tool_result_message(msgs[head_end]):
+            head_end += 1
+    if (tail_start > 0 and tail_start < len(msgs)
+            and _is_tool_result_message(msgs[tail_start])
+            and _message_has_tool_use(msgs[tail_start - 1])):
+        tail_start -= 1
+    if head_end >= tail_start:
+        return msgs
+    return msgs[:head_end] + [{"role": "user", "content": f"[snipped {tail_start - head_end} msgs]"}] + msgs[tail_start:]
 
 def collect_tool_results(msgs):
     blocks = []
@@ -513,8 +540,13 @@ def compact_history(msgs):
 
 def reactive_compact(msgs):
     write_transcript(msgs)
-    summary = summarize_history(msgs)
-    return [{"role": "user", "content": f"[Reactive compact]\n\n{summary}"}, *msgs[-5:]]
+    tail_start = max(0, len(msgs) - 5)
+    if (tail_start > 0 and tail_start < len(msgs)
+            and _is_tool_result_message(msgs[tail_start])
+            and _message_has_tool_use(msgs[tail_start - 1])):
+        tail_start -= 1
+    summary = summarize_history(msgs[:tail_start])
+    return [{"role": "user", "content": f"[Reactive compact]\n\n{summary}"}, *msgs[tail_start:]]
 
 
 # ═══════════════════════════════════════════════════════════
@@ -553,10 +585,10 @@ def agent_loop(messages: list):
     # s09: inject relevant memory content into the current user turn
     memories_content = load_memories(messages)
     memory_turn = len(messages) - 1 if messages and isinstance(messages[-1].get("content"), str) else None
-    while True:
-        # s09: rebuild system with current memory index
-        system = build_system()
+    # s09: build system once per user turn; memory is updated after the loop returns
+    system = build_system()
 
+    while True:
         # s09: save pre-compression snapshot for accurate memory extraction
         pre_compress = [m if isinstance(m, dict) else {"role": m.get("role",""),
             "content": str(m.get("content",""))} for m in messages]

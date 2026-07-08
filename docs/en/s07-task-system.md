@@ -1,6 +1,6 @@
 # s07: Task System
 
-`s01 > s02 > s03 > s04 > s05 > s06 | [ s07 ] s08 > s09 > s10 > s11 > s12`
+`s01 > s02 > s03 > s04 > s05 > s06 | [ s07 ] > s08 > s09 > s10 > s11 > s12`
 
 > *"Break big goals into small tasks, order them, persist to disk"* -- a file-based task graph with dependencies, laying the foundation for multi-agent collaboration.
 >

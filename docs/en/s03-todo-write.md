@@ -1,6 +1,6 @@
 # s03: TodoWrite
 
-`s01 > s02 > [ s03 ] s04 > s05 > s06 | s07 > s08 > s09 > s10 > s11 > s12`
+`s01 > s02 > [ s03 ] > s04 > s05 > s06 | s07 > s08 > s09 > s10 > s11 > s12`
 
 > *"An agent without a plan drifts"* -- list the steps first, then execute.
 >

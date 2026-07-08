@@ -139,7 +139,7 @@ python s03_permission/code.py
 试试这些 prompt：
 
 1. `Create a file called test.txt in the current directory`（应该直接通过）
-2. `Delete all temporary files in /tmp`（bash + rm 会触发闸门 2）
+2. `Delete the file test.txt`（bash + rm 会触发闸门 2）
 3. `What files are in the current directory?`（只读，全部通过）
 4. `Try to write a file to /etc/something`（写工作区外，触发闸门 2）
 

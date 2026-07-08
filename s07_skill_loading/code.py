@@ -23,11 +23,12 @@ Changes from s06:
   Loop unchanged: load_skill auto-dispatches via TOOL_HANDLERS.
 
 Run: python s07_skill_loading/code.py
-Needs: pip install anthropic python-dotenv + ANTHROPIC_API_KEY in .env
+Needs: pip install anthropic python-dotenv pyyaml + ANTHROPIC_API_KEY in .env
 """
 
-import os, subprocess
+import ast, json, os, subprocess
 from pathlib import Path
+import yaml
 
 try:
     import readline
@@ -56,11 +57,10 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
     parts = text.split("---", 2)
     if len(parts) < 3:
         return {}, text
-    meta = {}
-    for line in parts[1].strip().splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            meta[k.strip()] = v.strip().strip('"').strip("'")
+    try:
+        meta = yaml.safe_load(parts[1]) or {}
+    except yaml.YAMLError:
+        meta = {}
     return meta, parts[2].strip()
 
 # Build skill registry at startup (used for safe lookup in load_skill)
@@ -168,13 +168,31 @@ def run_glob(pattern: str) -> str:
     except Exception as e:
         return f"Error: {e}"
 
+def _normalize_todos(todos):
+    if isinstance(todos, str):
+        try:
+            todos = json.loads(todos)
+        except json.JSONDecodeError:
+            try:
+                todos = ast.literal_eval(todos)
+            except (SyntaxError, ValueError):
+                return None, "Error: todos must be a list or JSON array string"
+    if not isinstance(todos, list):
+        return None, "Error: todos must be a list"
+    for i, t in enumerate(todos):
+        if not isinstance(t, dict):
+            return None, f"Error: todos[{i}] must be an object"
+        if "content" not in t or "status" not in t:
+            return None, f"Error: todos[{i}] missing 'content' or 'status'"
+        if t["status"] not in ("pending", "in_progress", "completed"):
+            return None, f"Error: todos[{i}] has invalid status '{t['status']}'"
+    return todos, None
+
 def run_todo_write(todos: list) -> str:
     global CURRENT_TODOS
-    for i, t in enumerate(todos):
-        if "content" not in t or "status" not in t:
-            return f"Error: todos[{i}] missing 'content' or 'status'"
-        if t["status"] not in ("pending", "in_progress", "completed"):
-            return f"Error: todos[{i}] has invalid status '{t['status']}'"
+    todos, error = _normalize_todos(todos)
+    if error:
+        return error
     CURRENT_TODOS = todos
     lines = ["\n\033[33m## Current Tasks\033[0m"]
     for t in CURRENT_TODOS:

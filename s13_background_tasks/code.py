@@ -444,15 +444,14 @@ def agent_loop(messages: list, context: dict):
                                 "tool_use_id": block.id,
                                 "content": output})
 
-        # Inject background notifications + tool results in one user message
-        user_content = []
+        # Inject tool results + background notifications in one user message
+        user_content = list(results)
         bg_notifications = collect_background_results()
         if bg_notifications:
             for notif in bg_notifications:
                 user_content.append({"type": "text", "text": notif})
             print(f"  \033[32m[inject] {len(bg_notifications)} background "
                   f"notification(s)\033[0m")
-        user_content.extend(results)
         messages.append({"role": "user", "content": user_content})
         context = update_context(context, messages)
         system = get_system_prompt(context)
@@ -476,4 +475,6 @@ if __name__ == "__main__":
         for block in history[-1]["content"]:
             if getattr(block, "type", None) == "text":
                 print(block.text)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                print(block.get("text", ""))
         print()

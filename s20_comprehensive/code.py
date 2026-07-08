@@ -3,7 +3,7 @@
 s20: Comprehensive Agent — all teaching components in one loop.
 
 Run:  python s20_comprehensive/code.py
-Need: pip install anthropic python-dotenv + .env with ANTHROPIC_API_KEY
+Need: pip install anthropic python-dotenv pyyaml + .env with ANTHROPIC_API_KEY
 
 This final chapter intentionally puts the earlier teaching mechanisms back
 together: dispatch, permission, hooks, todo, subagent, skills, compaction,
@@ -11,10 +11,11 @@ memory, prompt assembly, error recovery, task graph, background tasks, cron,
 teams, protocols, autonomous agents, worktrees, and MCP.
 """
 
-import os, subprocess, json, time, random, threading, re
+import ast, json, os, subprocess, time, random, threading, re
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
+import yaml
 
 try:
     import readline
@@ -292,11 +293,10 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
     parts = text.split("---", 2)
     if len(parts) < 3:
         return {}, text
-    meta = {}
-    for line in parts[1].strip().splitlines():
-        if ":" in line:
-            key, value = line.split(":", 1)
-            meta[key.strip()] = value.strip().strip('"').strip("'")
+    try:
+        meta = yaml.safe_load(parts[1]) or {}
+    except yaml.YAMLError:
+        meta = {}
     return meta, parts[2].strip()
 
 
@@ -457,13 +457,31 @@ def call_tool_handler(handler, args: dict, name: str) -> str:
         return f"Error: {e}"
 
 
+def _normalize_todos(todos):
+    if isinstance(todos, str):
+        try:
+            todos = json.loads(todos)
+        except json.JSONDecodeError:
+            try:
+                todos = ast.literal_eval(todos)
+            except (SyntaxError, ValueError):
+                return None, "Error: todos must be a list or JSON array string"
+    if not isinstance(todos, list):
+        return None, "Error: todos must be a list"
+    for i, todo in enumerate(todos):
+        if not isinstance(todo, dict):
+            return None, f"Error: todos[{i}] must be an object"
+        if "content" not in todo or "status" not in todo:
+            return None, f"Error: todos[{i}] missing 'content' or 'status'"
+        if todo["status"] not in ("pending", "in_progress", "completed"):
+            return None, f"Error: todos[{i}] has invalid status '{todo['status']}'"
+    return todos, None
+
 def run_todo_write(todos: list) -> str:
     global CURRENT_TODOS
-    for i, todo in enumerate(todos):
-        if "content" not in todo or "status" not in todo:
-            return f"Error: todos[{i}] missing 'content' or 'status'"
-        if todo["status"] not in ("pending", "in_progress", "completed"):
-            return f"Error: todos[{i}] has invalid status '{todo['status']}'"
+    todos, error = _normalize_todos(todos)
+    if error:
+        return error
     CURRENT_TODOS = todos
     print(f"  \033[33m[todo] updated {len(CURRENT_TODOS)} item(s)\033[0m")
     return f"Updated {len(CURRENT_TODOS)} todos"
@@ -1042,6 +1060,28 @@ def spawn_subagent(description: str) -> str:
 def estimate_size(messages: list) -> int:
     return len(json.dumps(messages, default=str))
 
+def block_type(block):
+    return block.get("type") if isinstance(block, dict) else getattr(block, "type", None)
+
+
+def message_has_tool_use(message: dict) -> bool:
+    if message.get("role") != "assistant":
+        return False
+    content = message.get("content")
+    if not isinstance(content, list):
+        return False
+    return any(block_type(block) == "tool_use" for block in content)
+
+
+def is_tool_result_message(message: dict) -> bool:
+    if message.get("role") != "user":
+        return False
+    content = message.get("content")
+    if not isinstance(content, list):
+        return False
+    return any(isinstance(block, dict) and block.get("type") == "tool_result"
+               for block in content)
+
 
 def collect_tool_results(messages: list):
     found = []
@@ -1093,11 +1133,20 @@ def tool_result_budget(messages: list, max_bytes: int = 200_000) -> list:
 def snip_compact(messages: list, max_messages: int = 50) -> list:
     if len(messages) <= max_messages:
         return messages
-    keep_head, keep_tail = 3, max_messages - 3
-    snipped = len(messages) - keep_head - keep_tail
-    return (messages[:keep_head]
+    head_end, tail_start = 3, len(messages) - (max_messages - 3)
+    if head_end > 0 and message_has_tool_use(messages[head_end - 1]):
+        while head_end < len(messages) and is_tool_result_message(messages[head_end]):
+            head_end += 1
+    if (tail_start > 0 and tail_start < len(messages)
+            and is_tool_result_message(messages[tail_start])
+            and message_has_tool_use(messages[tail_start - 1])):
+        tail_start -= 1
+    if head_end >= tail_start:
+        return messages
+    snipped = tail_start - head_end
+    return (messages[:head_end]
             + [{"role": "user", "content": f"[snipped {snipped} messages]"}]
-            + messages[-keep_tail:])
+            + messages[tail_start:])
 
 
 def micro_compact(messages: list) -> list:
@@ -1141,12 +1190,17 @@ def compact_history(messages: list) -> list:
 def reactive_compact(messages: list) -> list:
     transcript = write_transcript(messages)
     print(f"  \033[31m[reactive compact] transcript saved: {transcript}\033[0m")
+    tail_start = max(0, len(messages) - 5)
+    if (tail_start > 0 and tail_start < len(messages)
+            and is_tool_result_message(messages[tail_start])
+            and message_has_tool_use(messages[tail_start - 1])):
+        tail_start -= 1
     try:
-        summary = summarize_history(messages)
+        summary = summarize_history(messages[:tail_start])
     except Exception:
         summary = "Earlier conversation was trimmed after a prompt-too-long error."
     return [{"role": "user", "content": f"[Reactive compact]\n\n{summary}"},
-            *messages[-5:]]
+            *messages[tail_start:]]
 
 
 # ── Error Recovery ──
@@ -1872,10 +1926,9 @@ def prepare_context(messages: list) -> list:
 def build_user_content(results: list[dict]) -> list[dict]:
     # Tool results and completed background notifications are both returned to
     # the model as user-side content, matching the tool_result feedback loop.
-    content = []
+    content = list(results)
     for note in collect_background_results():
         content.append({"type": "text", "text": note})
-    content.extend(results)
     return content
 
 
@@ -2010,8 +2063,8 @@ def print_turn_assistants(messages: list, turn_start: int):
         if msg.get("role") != "assistant":
             continue
         for block in msg.get("content", []):
-            if getattr(block, "type", None) == "text":
-                terminal_print(block.text)
+            if block_type(block) == "text":
+                terminal_print(block["text"] if isinstance(block, dict) else block.text)
 
 
 def cron_autorun_loop(history: list, context: dict):

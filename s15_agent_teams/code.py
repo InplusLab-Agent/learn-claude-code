@@ -20,7 +20,7 @@ ASCII flow:
   Teammate: inbox → LLM → bash/read/write/send → loop (max 10 turns)
 """
 
-import os, subprocess, json, time, random, threading
+import os, subprocess, json, time, random, threading, queue
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict
@@ -344,6 +344,13 @@ def collect_background_results() -> list[str]:
     return notifications
 
 
+def has_pending_background() -> bool:
+    """Non-destructive: True if any background task has completed and is
+    waiting to be collected. The inbox poller uses this in its wake condition."""
+    with background_lock:
+        return any(t["status"] == "completed" for t in background_tasks.values())
+
+
 # ── Cron Scheduler (from s14, synced) ──
 
 DURABLE_PATH = WORKDIR / ".scheduled_tasks.json"
@@ -617,6 +624,13 @@ class MessageBus:
         inbox.unlink()  # consume: read + delete
         return msgs
 
+    def peek(self, agent: str) -> bool:
+        """Non-destructive: True if the agent has unread inbox messages.
+        The Lead's inbox poller uses this to decide whether to wake a turn
+        without consuming the mailbox."""
+        inbox = MAILBOX_DIR / f"{agent}.jsonl"
+        return inbox.exists() and inbox.stat().st_size > 0
+
 
 BUS = MessageBus()
 
@@ -887,13 +901,12 @@ def agent_loop(messages: list, context: dict):
                                 "tool_use_id": block.id,
                                 "content": output})
 
-        # Merge background notifications + tool results into one user message
-        user_content = []
+        # Merge background tool results + notifications into one user message
+        user_content = list(results)
         bg_notifications = collect_background_results()
         if bg_notifications:
             for notif in bg_notifications:
                 user_content.append({"type": "text", "text": notif})
-        user_content.extend(results)
         messages.append({"role": "user", "content": user_content})
         context = update_context(context, messages)
         system = get_system_prompt(context)
@@ -904,26 +917,69 @@ if __name__ == "__main__":
     print("Enter a question, press Enter to send. Type q to quit.\n")
     history = []
     context = update_context({}, [])
+
+    # input() and a 1s poller (teammate inbox or background results) feed one
+    # event queue (issues #291, #46).
+    events = queue.Queue()
+
+    def input_reader():
+        while True:
+            try:
+                line = input("\033[36ms15 >> \033[0m")
+            except (EOFError, KeyboardInterrupt):
+                events.put(("quit", None))
+                return
+            events.put(("user", line))
+
+    def inbox_poller():
+        # Poll ~1s and wake the Lead when async results are ready: teammate
+        # inbox messages or completed background tasks. Don't gate on
+        # active_teammates: a teammate sends its result and then removes itself,
+        # so the final message can outlive its registry entry.
+        while True:
+            time.sleep(1)
+            if BUS.peek("lead") or has_pending_background():
+                events.put(("wake", None))
+
+    threading.Thread(target=input_reader, daemon=True).start()
+    threading.Thread(target=inbox_poller, daemon=True).start()
+
+    had_teammates = False
     while True:
-        try:
-            query = input("\033[36ms15 >> \033[0m")
-        except (EOFError, KeyboardInterrupt):
+        kind, payload = events.get()
+        if kind == "quit":
             break
-        if query.strip().lower() in ("q", "exit", ""):
-            break
-        history.append({"role": "user", "content": query})
+        if kind == "user":
+            if payload.strip().lower() in ("q", "exit", ""):
+                break
+            history.append({"role": "user", "content": payload})
+        else:  # "wake": teammate inbox or background results are ready
+            parts = []
+            inbox = BUS.read_inbox("lead")
+            if inbox:
+                parts.append("[Inbox]\n" + "\n".join(
+                    f"From {m['from']}: {m['content'][:200]}" for m in inbox))
+            bg = collect_background_results()
+            parts.extend(bg)
+            if not parts:
+                continue  # already drained by an earlier wake (idempotent)
+            history.append({"role": "user", "content": "\n".join(parts)})
+            print(f"\n\033[33m[wake: {len(inbox)} inbox + {len(bg)} background "
+                  f"-> new turn]\033[0m")
+
+        # One turn for whichever source woke us.
         agent_loop(history, context)
         context = update_context(context, history)
         for block in history[-1]["content"]:
             if getattr(block, "type", None) == "text":
                 print(block.text)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                print(block.get("text", ""))
 
-        # Check inbox for teammate results → inject into history
-        inbox = BUS.read_inbox("lead")
-        if inbox:
-            inbox_text = "\n".join(
-                f"From {m['from']}: {m['content'][:200]}" for m in inbox)
-            history.append({"role": "user",
-                            "content": f"[Inbox]\n{inbox_text}"})
-            print(f"\n\033[33m[Inbox: {len(inbox)} messages injected]\033[0m")
+        # Announce once when every teammate has finished and its output drained.
+        if active_teammates:
+            had_teammates = True
+        elif had_teammates and not BUS.peek("lead") and not has_pending_background():
+            print("\033[32m[all teammates done]\033[0m")
+            had_teammates = False
         print()

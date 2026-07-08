@@ -415,7 +415,7 @@ After 20 lessons, you understand harness engineering from the inside out. Two pa
 
 Skill and LSP support, Windows compatible, works with GLM / MiniMax / DeepSeek and other open models. Install and go.
 
-GitHub: **[shareAI-lab/Kode-Agent](https://github.com/shareAI-lab/Kode-Agent)**
+GitHub: **[shareAI-lab/Kode-CLI](https://github.com/shareAI-lab/Kode-CLI)**
 
 ### Kode Agent SDK -- Embed Agent Capabilities in Your Application
 

@@ -139,7 +139,7 @@ python s03_permission/code.py
 Try these prompts:
 
 1. `Create a file called test.txt in the current directory` (should pass through)
-2. `Delete all temporary files in /tmp` (bash + rm triggers Gate 2)
+2. `Delete the file test.txt` (bash + rm triggers Gate 2)
 3. `What files are in the current directory?` (read-only, all pass)
 4. `Try to write a file to /etc/something` (writing outside workspace triggers Gate 2)
 
