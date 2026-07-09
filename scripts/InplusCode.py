@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
@@ -14,17 +13,18 @@ try:
 except ImportError:
     pass
 
-
-from utils.shell import get_prompt
-from utils.load_config import config
-from utils.tools import *
-from rich import print
-
 load_dotenv(override=True)  # 读取 .env 文件，把里面的变量加载进系统环境变量。
 
 
+from utils.shell import get_prompt
+from utils.load_config import load_config, cwd
+from utils.tools import *
+from utils.permission import *
+from rich import print
+from pathlib import Path
+
 # cwd = Path.cwd()  # 获取工作区路径
-cwd = Path(os.getcwd())
+# cwd = Path("D:\--UnityProject\RunminG-Lab\learn-claude-code\scripts")
 client = Anthropic(
     base_url=os.getenv("ANTHROPIC_BASE_URL"),
     auth_token=os.getenv("ANTHROPIC_AUTH_TOKEN"),
@@ -36,6 +36,8 @@ prompt = get_prompt(cwd)
 # ── The core pattern: a while loop that calls tools until the model stops ──
 def agent_loop(messages: list):
     while True:
+        config = load_config()  # 动态加载config
+
         response = client.messages.create(
             model=model,
             system=prompt,
@@ -61,6 +63,20 @@ def agent_loop(messages: list):
                         print(
                             f"[green]Tool Use: {block.name}[/green] [yellow]${block.input}[/yellow]\n"
                         )
+
+                    # s03 change: run through permission pipeline before executing
+                    if config.get("permission", {}).get(
+                        "mode", "strict"
+                    ):  # 是否启用拦截风险
+                        if not check_permission(block):
+                            results.append(
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": block.id,
+                                    "content": "Permission denied.",
+                                }
+                            )
+                            continue
 
                     # ── Tool execution ────────────────────────────────────────
                     handler = TOOL_HANDLERS.get(block.name)

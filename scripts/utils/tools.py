@@ -1,9 +1,7 @@
 from pathlib import Path
-import os
-
 from utils.shell import run_shell
+from utils.load_config import cwd
 
-cwd = Path(os.getcwd())
 
 
 # ═══════════════════════════════════════════════════════════

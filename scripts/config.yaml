@@ -1,2 +1,8 @@
 show_thinking: true
 show_tool_use: true
+paths:
+  workspace: D:\--UnityProject\RunminG-Lab\learn-claude-code\scripts
+permission:
+  # off    - disables all permission checks, executes commands directly
+  # strict - enables all gates including the most restrictive checks
+  mode: strict 

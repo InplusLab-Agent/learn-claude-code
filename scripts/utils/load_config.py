@@ -1,5 +1,6 @@
 from pathlib import Path
-import yaml
+import yaml, os
+
 
 def load_config(path="scripts/config.yaml") -> dict:
     if not Path(path).exists():
@@ -8,4 +9,5 @@ def load_config(path="scripts/config.yaml") -> dict:
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
-config = load_config()
+
+cwd = Path(load_config().get("paths", {}).get("workspace", os.getcwd()))
