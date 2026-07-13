@@ -10,30 +10,46 @@ s04: Hooks — move extension logic out of the loop, onto hooks.
   │ UserPromptSubmit │ ── trigger_hooks() before LLM
   └────────┬─────────┘
            ▼
-  ┌────────────┐     ┌─────────────────────────────┐
-  │  messages  │────▶│  LLM (stop_reason=tool_use?)│
-  └────────────┘     │   No ──▶ Stop hooks ──▶ exit │
-                     │   Yes ──▶ tool_use block ──┐ │
-                     └────────────────────────────┘ │
-                                                    ▼
-                                          ┌──────────────────┐
-                                          │ trigger_hooks()   │
-                                          │  PreToolUse:      │
-                                          │   permission_hook │
-                                          │   log_hook        │
-                                          └───────┬──────────┘
-                                                  │ (not blocked)
-                                          ┌───────▼──────────┐
-                                          │ TOOL_HANDLERS[x]  │
-                                          └───────┬──────────┘
-                                                  │
-                                          ┌───────▼──────────┐
-                                          │ trigger_hooks()   │
-                                          │  PostToolUse:     │
-                                          │   large_output    │
-                                          └───────┬──────────┘
-                                                  │
-                                          results ──▶ back to messages
+  ┌────────────┐     ┌──────────────────────────────────┐
+  │  messages  │────▶│  LLM (stop_reason=tool_use?)     │
+  └────────────┘     │   No ──▶ Stop hooks ──▶ exit    │
+                     │   Yes ──▶ response content block │
+                     └─────────────────┬────────────────┘
+                                       │
+                       ┌───────────────┴───────────────┐
+                       │   for each block in content    │◀─────────────────┐
+                       └───────────────┬───────────────┘                    │
+                                       │                                    │
+                       ┌───────────────┴───────────────┐                    │
+                       │                               │                    │
+             ┌─────────▼─────────┐           ┌─────────▼─────────┐          │
+             │  block.type ==    │           │  block.type ==    │          │
+             │   'thinking'      │           │   'tool_use'      │          │
+             └─────────┬─────────┘           └─────────┬─────────┘          │
+                       │                               │                    │
+             ┌─────────▼─────────┐           ┌─────────▼─────────┐          │
+             │ trigger_hooks()   │           │ trigger_hooks()   │          │
+             │  OnThinking       │           │  PreToolUse:      │          │
+             └─────────┬─────────┘           │   permission_hook │          │
+                       │                     │   log_hook        │          │
+                       │                     └───────┬───────────┘          │
+                       │                             │ (not blocked)        │
+                       │                     ┌───────▼───────────┐          │
+                       │                     │ TOOL_HANDLERS[x]  │          │
+                       │                     └───────┬───────────┘          │
+                       │                             │                      │
+                       │                     ┌───────▼───────────┐          │
+                       │                     │ trigger_hooks()   │          │
+                       │                     │  PostToolUse:     │          │
+                       │                     │   large_output    │          │
+                       │                     └─────────┬─────────┘          │
+                       └──────────┬────────────────────┘                    │
+                                  │                                         │
+                                  └─────────────────────────────────────────┘
+                                  (all blocks done)
+                                            │
+                                            ▼
+                                   results ──▶ back to messages
 
 """
 
@@ -41,7 +57,7 @@ s04: Hooks — move extension logic out of the loop, onto hooks.
 #  NEW in s04: Hook System (s03 permission logic now via hooks)
 # ═══════════════════════════════════════════════════════════
 import os
-from utils.load_config import cwd
+from utils.load_config import cwd, load_config
 from utils.tools import *
 from rich import print
 
@@ -99,8 +115,16 @@ else:
         "| bash",  # 下载内容后直接交给 bash 执行
         "| sh",  # 下载内容后直接交给 sh 执行
     ]
+# fmt: on
 
-HOOKS = {"UserPromptSubmit": [], "PreToolUse": [], "PostToolUse": [], "Stop": []}
+
+HOOKS = {
+    "UserPromptSubmit": [],
+    "PreToolUse": [],
+    "PostToolUse": [],
+    "Stop": [],
+    "OnThinking": [],
+}
 
 
 def register_hook(event: str, callback):
@@ -120,13 +144,27 @@ def trigger_hooks(event: str, *args):
 # RISK_LIST = ["rm ", "> /etc/", "chmod 777"]
 
 
+# OnThinking: 打印思考痕迹
+def show_thinking_hook(block) -> None:
+    config = load_config()
+    if config.get("show_thinking", True):  # 是否打印思考过程
+        print(f"[HOOK] Thinking: [blue]{block.thinking}[/blue]\n")
+    return None
 
 
+# PreToolUse: s03 check_permission() logic moved here.
 # 3 Gates Chain 检查工具权限。
 def permission_hook(block) -> str | None:
-    """PreToolUse: s03 check_permission() logic moved here."""
 
-    command = block.input.get("command", "").lower()  # block.input，这是大模型生成的工具调用的参数
+    config = load_config()
+
+    # 是否启用拦截风险
+    if config.get("permission", {}).get("mode", "strict")  != True: # fmt: skip
+        return None  #  None: 表示允许工具调用继续，不需要检查权限
+
+    command = block.input.get(
+        "command", ""
+    ).lower()  # block.input，这是大模型生成的工具调用的参数
     path = block.input.get("path", "")
 
     # 检查 bash 命令是否有在 DENY_LIST 中的命令或 RISK_LIST 中的命令
@@ -143,7 +181,6 @@ def permission_hook(block) -> str | None:
             if choice not in ("y", "yes"):
                 return "Permission denied by user"
 
-
     # 检查是否越出工作区操作
     elif block.name in ("write_file", "edit_file"):
         # (cwd / path) 表示 当前 "工作目录" + "对象相对路径"，   .resovle()表示转化为绝对目录。
@@ -152,24 +189,32 @@ def permission_hook(block) -> str | None:
             choice = input("  Allow? [y/N] ").strip().lower()
             if choice not in ("y", "yes"):
                 return "Permission denied by user"
-    return None # Only return None: 才表示允许工具调用继续
+    return None  #  None: 表示允许工具调用继续
 
 
+# PreToolUse: log every tool call.
 def log_hook(block):
-    """PreToolUse: log every tool call."""
     args_preview = str(list(block.input.values())[:2])[:60]
     print(f"[HOOK] {block.name}({args_preview})")
     return None
 
 
+# PreToolUse:
+
+
+# PostToolUse: warn on large output.
 def large_output_hook(block, output):
-    """PostToolUse: warn on large output."""
     if len(str(output)) > 100000:
-        print(
-            f"[HOOK] ⚠ Large output from {block.name}: {len(str(output))} chars"
-        )
+        print(f"[HOOK] ⚠ Large output from {block.name}: {len(str(output))} chars")
     return None
 
+
+# PostToolUse: 打印工具调用
+def show_tool_use_hook(block):
+    config = load_config()
+    if config.get("show_tool_use", True):  # 是否打印工具调用
+        print(f"[HOOK] Tool Use: [green] {block.name}[/green] [yellow]${block.input}[/yellow]\n") # fmt: skip
+    return None
 
 # UserPromptSubmit hook: log user input before it reaches the LLM
 def context_inject_hook(query: str):
@@ -190,7 +235,9 @@ def summary_hook(messages: list):
 
 
 register_hook("UserPromptSubmit", context_inject_hook)
+register_hook("OnThinking", show_thinking_hook)
 register_hook("PreToolUse", permission_hook)
 register_hook("PreToolUse", log_hook)
 register_hook("PostToolUse", large_output_hook)
+register_hook("PostToolUse", show_tool_use_hook)
 register_hook("Stop", summary_hook)

@@ -1,4 +1,6 @@
 {
     "python.terminal.useEnvFile": true,
-    "explorer.excludeGitIgnore": false
+    "explorer.excludeGitIgnore": false,
+    "http.proxy": "http://127.0.0.1:15236",
+    "http.proxySupport": "override"
 }

@@ -1,5 +1,5 @@
-show_thinking: false
-show_tool_use: false
+show_thinking: true
+show_tool_use: true
 paths:
   workspace: D:\--UnityProject\RunminG-Lab\learn-claude-code\scripts
 permission:
