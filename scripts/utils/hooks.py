@@ -1,5 +1,4 @@
 # 在 User -- Agent Loop 的各个生命周期节点，注入Hooks，便于把扩展逻辑从主循环解耦；
-
 """
 s04: Hooks — move extension logic out of the loop, onto hooks.
 
@@ -62,15 +61,14 @@ from utils.tools import *
 from rich import print
 
 # ────────────── DENY / RISK command LIST ───────────────────────────────────────────
-# fmt: off
 # 高风险但不一定绝对禁止：命中后需要进一步询问/确认/拦截
 if os.name == "nt":
     DENY_LIST = (
-            "format",  # 格式化磁盘
-            "diskpart",  # 磁盘分区工具，可能删除/修改分区
-            "bcdedit",  # 修改 Windows 启动配置
-            "reg delete",  # 删除注册表项
-            "shutdown",  # 关机或重启系统
+        "format",  # 格式化磁盘
+        "diskpart",  # 磁盘分区工具，可能删除/修改分区
+        "bcdedit",  # 修改 Windows 启动配置
+        "reg delete",  # 删除注册表项
+        "shutdown",  # 关机或重启系统
     )
     RISK_LIST = [
         "del /s",  # 递归删除文件
@@ -88,17 +86,18 @@ if os.name == "nt":
         "wget ",  # 下载远程内容，可能配合执行脚本
         "| powershell",  # 管道执行 PowerShell
         "| cmd",  # 管道执行 cmd
+        "python -c",  # 执行 Python 代码片段
     ]
 else:
     DENY_LIST = (
-            "sudo",  # 使用管理员权限执行命令
-            "su ",  # 切换用户，可能获得更高权限
-            "shutdown",  # 关机
-            "reboot",  # 重启系统
-            "mkfs",  # 格式化文件系统
-            "dd if=",  # 底层磁盘复制/写入命令
-            "rm -rf /",  # 强制递归删除根目录
-            "> /dev/",  # 向设备文件写入内容
+        "sudo",  # 使用管理员权限执行命令
+        "su ",  # 切换用户，可能获得更高权限
+        "shutdown",  # 关机
+        "reboot",  # 重启系统
+        "mkfs",  # 格式化文件系统
+        "dd if=",  # 底层磁盘复制/写入命令
+        "rm -rf /",  # 强制递归删除根目录
+        "> /dev/",  # 向设备文件写入内容
     )
     RISK_LIST = [
         "rm -rf",  # 强制递归删除文件/目录
@@ -115,9 +114,6 @@ else:
         "| bash",  # 下载内容后直接交给 bash 执行
         "| sh",  # 下载内容后直接交给 sh 执行
     ]
-# fmt: on
-
-
 HOOKS = {
     "UserPromptSubmit": [],
     "PreToolUse": [],
@@ -144,7 +140,8 @@ def trigger_hooks(event: str, *args):
 # RISK_LIST = ["rm ", "> /etc/", "chmod 777"]
 
 
-# OnThinking: 打印思考痕迹
+# ═══════════ OnThinking ══════════════════════════════════════
+# 打印思考痕迹
 def show_thinking_hook(block) -> None:
     config = load_config()
     if config.get("show_thinking", True):  # 是否打印思考过程
@@ -152,15 +149,19 @@ def show_thinking_hook(block) -> None:
     return None
 
 
-# PreToolUse: s03 check_permission() logic moved here.
+# ══════════════ PreToolUse ═════════════════════════════════════════════
+# s03 check_permission() logic moved here.
 # 3 Gates Chain 检查工具权限。
 def permission_hook(block) -> str | None:
 
     config = load_config()
 
     # 是否启用拦截风险
-    if config.get("permission", {}).get("mode", "strict")  != True: # fmt: skip
+    mode = config.get("permission", {}).get("mode", "strict")
+    if mode == "off": # fmt: skip
         return None  #  None: 表示允许工具调用继续，不需要检查权限
+    if mode != "strict":
+        return ValueError(f"Permission mode is {mode}, expected 'strict'")
 
     command = block.input.get(
         "command", ""
@@ -192,37 +193,38 @@ def permission_hook(block) -> str | None:
     return None  #  None: 表示允许工具调用继续
 
 
-# PreToolUse: log every tool call.
+# log every tool call.
 def log_hook(block):
     args_preview = str(list(block.input.values())[:2])[:60]
     print(f"[HOOK] {block.name}({args_preview})")
     return None
 
 
-# PreToolUse:
-
-
-# PostToolUse: warn on large output.
+# warn on large output.
 def large_output_hook(block, output):
     if len(str(output)) > 100000:
         print(f"[HOOK] ⚠ Large output from {block.name}: {len(str(output))} chars")
     return None
 
 
-# PostToolUse: 打印工具调用
-def show_tool_use_hook(block):
+# ═════════════ PostToolUse ═══════════════════════════════════
+#  打印工具调用
+def show_tool_use_hook(block, output):
     config = load_config()
     if config.get("show_tool_use", True):  # 是否打印工具调用
-        print(f"[HOOK] Tool Use: [green] {block.name}[/green] [yellow]${block.input}[/yellow]\n") # fmt: skip
+        print(f"[HOOK] Tool Use: [green] {block.name}[/green]\n[yellow]${output[:300]}[/yellow]\n") # fmt: skip
     return None
 
-# UserPromptSubmit hook: log user input before it reaches the LLM
+
+# ════════════ UserPromptSubmit ═══════════════════════════════
+# log user input before it reaches the LLM
 def context_inject_hook(query: str):
     print(f"[HOOK] UserPromptSubmit: working in {cwd}")
     return None
 
 
-# Stop hook: print summary when loop is about to exit
+# ═════════════ Stop ══════════════════════════════════════
+# print summary when loop is about to exit
 def summary_hook(messages: list):
     tool_count = sum(
         1
