@@ -19,9 +19,10 @@ load_dotenv(override=True)  # 读取 .env 文件，把里面的变量加载进�
 from utils.shell import get_prompt
 from utils.load_config import load_config, cwd
 from utils.tools import *
-from utils.permission import *
+from utils.permission import check_permission
+from utils.hooks import trigger_hooks
 from rich import print
-from pathlib import Path
+# from pathlib import Path
 
 # cwd = Path.cwd()  # 获取工作区路径
 # cwd = Path("D:\--UnityProject\RunminG-Lab\learn-claude-code\scripts")
@@ -64,25 +65,38 @@ def agent_loop(messages: list):
                             f"[green]Tool Use: {block.name}[/green] [yellow]${block.input}[/yellow]\n"
                         )
 
-                    # s03 change: run through permission pipeline before executing
-                    if config.get("permission", {}).get(
-                        "mode", "strict"
-                    ):  # 是否启用拦截风险
-                        if not check_permission(block):
+
+                    # 是否启用拦截风险
+                    if config.get("permission", {}).get("mode", "strict"): # fmt: skip
+                        # # s03 change: run through permission pipeline before executing
+                        # if not check_permission(block):
+                        #     results.append(
+                        #         {
+                        #             "type": "tool_result",
+                        #             "tool_use_id": block.id,
+                        #             "content": "Permission denied.",
+                        #         }
+                        #     )
+                        #     continue
+
+                        # s04 change: hook replaces hard-coded check_permission()
+                        blocked = trigger_hooks("PreToolUse", block)
+                        if blocked:
                             results.append(
                                 {
                                     "type": "tool_result",
                                     "tool_use_id": block.id,
-                                    "content": "Permission denied.",
+                                    "content": str(blocked),
                                 }
                             )
                             continue
 
                     # ── Tool execution ────────────────────────────────────────
                     handler = TOOL_HANDLERS.get(block.name)
-                    output = (
-                        handler(**block.input) if handler else f"Unknown: {block.name}"
-                    )  # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
+                    output = (handler(**block.input) if handler else f"Unknown: {block.name}") # fmt: skip
+                    # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
+
+                    trigger_hooks("PostToolUse", block, output)  # s04: post hook
 
                     # output = run_shell(block.input["command"], cwd)
                     print(output[:200])
