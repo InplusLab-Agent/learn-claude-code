@@ -58,6 +58,8 @@ def run_edit(path: str, old_text: str, new_text: str) -> str:
         return f"Error: {e}"
 
 
+# 使用python glob库支持【通配符搜索】功能；
+# 例如 *.py ---> 查找所有Python脚本并将结果结果返回；
 def run_glob(pattern: str) -> str:
     import glob as g
 

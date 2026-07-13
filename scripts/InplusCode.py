@@ -22,6 +22,7 @@ from utils.tools import *
 from utils.permission import check_permission
 from utils.hooks import trigger_hooks
 from rich import print
+
 # from pathlib import Path
 
 # cwd = Path.cwd()  # 获取工作区路径
@@ -60,28 +61,12 @@ def agent_loop(messages: list):
                         print(f"[blue]{block.thinking}[/blue]\n")
 
                 elif block.type == "tool_use":
-                    if config.get("show_tool_use", True):  # 是否打印工具调用
-                        print(
-                            f"[green]Tool Use: {block.name}[/green] [yellow]${block.input}[/yellow]\n"
-                        )
-
 
                     # 是否启用拦截风险
                     if config.get("permission", {}).get("mode", "strict"): # fmt: skip
-                        # # s03 change: run through permission pipeline before executing
-                        # if not check_permission(block):
-                        #     results.append(
-                        #         {
-                        #             "type": "tool_result",
-                        #             "tool_use_id": block.id,
-                        #             "content": "Permission denied.",
-                        #         }
-                        #     )
-                        #     continue
-
                         # s04 change: hook replaces hard-coded check_permission()
                         blocked = trigger_hooks("PreToolUse", block)
-                        if blocked:
+                        if blocked:  # 拦截本次工具调用
                             results.append(
                                 {
                                     "type": "tool_result",
@@ -90,6 +75,9 @@ def agent_loop(messages: list):
                                 }
                             )
                             continue
+                    
+                    if config.get("show_tool_use", True):  # 是否打印工具调用
+                        print(f"[green]Tool Use: {block.name}[/green] [yellow]${block.input}[/yellow]\n") # fmt: skip
 
                     # ── Tool execution ────────────────────────────────────────
                     handler = TOOL_HANDLERS.get(block.name)
@@ -108,8 +96,10 @@ def agent_loop(messages: list):
                         }
                     )
 
+                print(results)
             # Feed tool results back, loop continues
             messages.append({"role": "user", "content": results})
+            print(messages)
         else:
             return
 

@@ -1,3 +1,5 @@
+# 在 User -- Agent Loop 的各个生命周期节点，注入Hooks，便于把扩展逻辑从主循环解耦；
+
 """
 s04: Hooks — move extension logic out of the loop, onto hooks.
 
@@ -150,7 +152,7 @@ def permission_hook(block) -> str | None:
             choice = input("  Allow? [y/N] ").strip().lower()
             if choice not in ("y", "yes"):
                 return "Permission denied by user"
-    return None
+    return None # Only return None: 才表示允许工具调用继续
 
 
 def log_hook(block):
