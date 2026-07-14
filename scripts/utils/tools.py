@@ -1,4 +1,6 @@
 from pathlib import Path
+import ast
+import json
 from utils.shell import run_shell
 from utils.load_config import cwd
 
@@ -76,6 +78,51 @@ def run_glob(pattern: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════
+#  NEW in s05: todo_write tool — plan only, no execution
+# ═══════════════════════════════════════════════════════════
+
+
+# 单下划线 _ 开头的函数表示“私有”、“内部使用”，也不会被另一个文件的import导入。
+def _normalize_todos(todos):
+    if isinstance(todos, str):
+        try:
+            todos = json.loads(todos)
+        except json.JSONDecodeError:
+            try:
+                todos = ast.literal_eval(todos)
+            except (SyntaxError, ValueError):
+                return None, "Error: todos must be a list or JSON array string"
+    if not isinstance(todos, list):
+        return None, "Error: todos must be a list"
+    for i, t in enumerate(todos):
+        if not isinstance(t, dict):
+            return None, f"Error: todos[{i}] must be an object"
+        if "content" not in t or "status" not in t:
+            return None, f"Error: todos[{i}] missing 'content' or 'status'"
+        if t["status"] not in ("pending", "in_progress", "completed"):
+            return None, f"Error: todos[{i}] has invalid status '{t['status']}'"
+    return todos, None
+
+
+def run_todo_write(todos: list) -> str:
+    global CURRENT_TODOS
+    todos, error = _normalize_todos(todos)
+    if error:
+        return error
+    CURRENT_TODOS = todos
+    lines = ["\n\033[33m## Current Tasks\033[0m"]
+    for t in CURRENT_TODOS:
+        icon = {
+            "pending": " ",
+            "in_progress": "\033[36m▸\033[0m",
+            "completed": "\033[32m✓\033[0m",
+        }[t["status"]]
+        lines.append(f"  [{icon}] {t['content']}")
+    print("\n".join(lines))
+    return f"Updated {len(CURRENT_TODOS)} tasks"
+
+
+# ═══════════════════════════════════════════════════════════
 #  NEW in s02: 工具分发映射（s01 是硬编码 run_bash，现在改为查表）
 # ═══════════════════════════════════════════════════════════
 
@@ -85,6 +132,7 @@ TOOL_HANDLERS = {
     "write_file": run_write,
     "edit_file": run_edit,
     "glob": run_glob,
+    "todo_write": run_todo_write,
 }
 
 
@@ -137,6 +185,32 @@ TOOLS = [
             "type": "object",
             "properties": {"pattern": {"type": "string"}},
             "required": ["pattern"],
+        },
+    },
+    # s05: new tool
+    {
+        "name": "todo_write",
+        # todos[('Read the README.md file',  'completed'), ( "List all files in the current directory", 'pending')]
+        "description": "Create and manage a task list for your current coding session.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "todos": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "content": {"type": "string"},
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending", "in_progress", "completed"],
+                            },
+                        },
+                        "required": ["content", "status"],
+                    },
+                }
+            },
+            "required": ["todos"],
         },
     },
 ]

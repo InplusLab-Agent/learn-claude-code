@@ -16,8 +16,8 @@ except ImportError:
 load_dotenv(override=True)  # 读取 .env 文件，把里面的变量加载进系统环境变量。
 
 
-from utils.shell import get_prompt
-from utils.load_config import load_config, cwd
+from utils.shell import get_prompt, build_agent_prompt
+from utils.load_config import cwd
 from utils.tools import *
 from utils.hooks import trigger_hooks
 from rich import print
@@ -27,12 +27,24 @@ client = Anthropic(
     auth_token=os.getenv("ANTHROPIC_AUTH_TOKEN"),
 )
 model = os.getenv("MODEL_ID")
-prompt = get_prompt(cwd)
+prompt = get_prompt(cwd)  # deprecated
+prompt = build_agent_prompt(cwd)
+
+
+rounds_since_todo = 0
 
 
 # ── The core pattern: a while loop that calls tools until the model stops ──
 def agent_loop(messages: list):
+    global rounds_since_todo
     while True:
+        # s05: nag reminder — inject if model hasn't updated todos for 3 rounds
+        if rounds_since_todo >= 3 and messages:
+            messages.append(
+                {"role": "user", "content": "<reminder>Update your todos.</reminder>"}
+            )
+            rounds_since_todo = 0
+
         response = client.messages.create(
             model=model,
             system=prompt,
@@ -45,6 +57,8 @@ def agent_loop(messages: list):
 
         # If the model calls a tool, execute it and feed results back, then continue the loop
         if response.stop_reason == "tool_use":
+
+            rounds_since_todo += 1
             results = []
 
             # Execute each tool call, collect results
@@ -77,6 +91,10 @@ def agent_loop(messages: list):
                     # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
 
                     trigger_hooks("PostToolUse", block, output)  # s04: post hook
+
+                    # s05: reset nag counter when todo_write is called
+                    if block.name == "todo_write":
+                        rounds_since_todo = 0
 
                     # output = run_shell(block.input["command"], cwd)
                     # print(output[:200])

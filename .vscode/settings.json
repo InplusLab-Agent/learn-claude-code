@@ -1,6 +1,11 @@
 {
     "python.terminal.useEnvFile": true,
     "explorer.excludeGitIgnore": false,
-
     "black-formatter.importStrategy": "fromEnvironment",
+    "terminal.integrated.env.windows": {
+        "PATH": "${env:PATH};D:\\___HenryLab",
+        "HTTP_PROXY": "http://127.0.0.1:15236",
+        "HTTPS_PROXY": "http://127.0.0.1:15236",
+        "NO_PROXY": "localhost,127.0.0.1,::1"
+    },
 }
