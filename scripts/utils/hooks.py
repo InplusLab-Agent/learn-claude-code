@@ -59,6 +59,8 @@ import os
 from utils.load_config import cwd, load_config
 from utils.tools import *
 from rich import print
+from typing_extensions import deprecated
+from anthropic.types import Message
 
 # ────────────── DENY / RISK command LIST ───────────────────────────────────────────
 # 高风险但不一定绝对禁止：命中后需要进一步询问/确认/拦截
@@ -225,6 +227,7 @@ def context_inject_hook(query: str):
 
 # ═════════════ Stop ══════════════════════════════════════
 # print summary when loop is about to exit
+@deprecated("已弃用，请采用传入 response参数的方法。")
 def summary_hook(messages: list):
     tool_count = sum(
         1
@@ -232,8 +235,22 @@ def summary_hook(messages: list):
         for b in (m.get("content") if isinstance(m.get("content"), list) else [])
         if isinstance(b, dict) and b.get("type") == "tool_result"
     )
+    messages.get("content")
     print(f"[HOOK] Stop: session used {tool_count} tool calls")
     return None
+
+
+# 根据 response 的 stop_reason 决定是否强制继续 Loop
+def summary_hook(response: Message) -> str | None:
+    if response.stop_reason == "end_turn":
+        print(f"[HOOK] Stop: normal termination: {response.stop_reason}")
+        return None  # 正常结束Loop
+    print(f"[HOOK] Stop: encountered abnormal termination: {response.stop_reason}; Type 'y' to allow force loop to continue or exit." ) # fmt: skip
+    choice = input("  Force continue? [y/N] ").strip().lower()
+    if choice in ("y", "yes"):  # 强制继续执行，不结束
+        return "Continue. If the task is not complete, keep working."
+    else:  # 用户选择结束Loop
+        return None
 
 
 register_hook("UserPromptSubmit", context_inject_hook)
