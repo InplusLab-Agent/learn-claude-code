@@ -1,15 +1,25 @@
+"""
+DEPRECATED MODULE.
+
+This module implements beta version of permission check in hooks.py.
+
+Use:
+    utils.hooks
+
+instead.
+
+Deprecated since:
+    2026-07-16
+
+"""
+
 # ═══════════════════════════════════════════════════════════
 #  NEW in s03: Three-Gate Permission Pipeline
 # ═══════════════════════════════════════════════════════════
 import os
-from utils.load_config import load_config, cwd
+from utils.load_config import cwd
 from utils.tools import *
 from rich import print
-from pathlib import Path
-
-
-# DENY_LIST = ["rm -rf /", "sudo", "shutdown", "reboot", "mkfs", "dd if=", "> /dev/sda"]
-
 
 # ────────────── DENY / RISK command LIST ───────────────────────────────────────────
 # fmt: off

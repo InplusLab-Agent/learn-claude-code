@@ -223,7 +223,7 @@ def context_inject_hook(query: str):
 
 # ═════════════ Stop ══════════════════════════════════════
 # print summary when loop is about to exit
-@deprecated("已弃用，请采用传入 response参数的方法。")
+@deprecated("[已弃用] 请采用传入 response参数的方法。")
 def summary_hook(messages: list):
     tool_count = sum(
         1
