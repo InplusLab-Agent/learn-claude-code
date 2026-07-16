@@ -16,7 +16,7 @@ except ImportError:
 load_dotenv(override=True)  # 读取 .env 文件，把里面的变量加载进系统环境变量。
 
 
-from utils.shell import get_prompt, build_agent_prompt
+from utils.shell import build_agent_prompt
 from utils.load_config import cwd
 from utils.tools import *
 from utils.hooks import trigger_hooks
@@ -27,10 +27,7 @@ client = Anthropic(
     auth_token=os.getenv("ANTHROPIC_AUTH_TOKEN"),
 )
 model = os.getenv("MODEL_ID")
-prompt = get_prompt(cwd)  # deprecated
 prompt = build_agent_prompt(cwd)
-
-
 rounds_since_todo = 0
 
 
@@ -85,11 +82,11 @@ def agent_loop(messages: list):
 
                     # ── Tool execution ────────────────────────────────────────
                     handler = TOOL_HANDLERS.get(block.name)
-                    try:
+                    try:  # 拦截异常
                         output = handler(**block.input) if handler else f"Unknown: {block.name}" # fmt: skip
+                        # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
                     except TypeError as e:
                         output = f"Error: {e}"
-                    # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
 
                     trigger_hooks("PostToolUse", block, output)  # s04: post hook
 
@@ -97,8 +94,6 @@ def agent_loop(messages: list):
                     if block.name == "todo_write":
                         rounds_since_todo = 0
 
-                    # output = run_shell(block.input["command"], cwd)
-                    # print(output[:200])
                     results.append(
                         {
                             "type": "tool_result",
@@ -110,6 +105,7 @@ def agent_loop(messages: list):
             # Feed tool results back, loop continues
             messages.append({"role": "user", "content": results})
         else:
+            # TODO: fix the max_token bugs.
             force = trigger_hooks("Stop", response)  # 当 force为None时，正常结束。
             if force:
                 messages.append({"role": "user", "content": force})

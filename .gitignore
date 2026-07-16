@@ -232,4 +232,3 @@ test_providers.py
 # Internal analysis artifacts (not learning material)
 analysis/
 analysis_progress.md
-/scripts/tmp

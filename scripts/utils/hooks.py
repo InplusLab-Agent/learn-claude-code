@@ -137,18 +137,13 @@ def trigger_hooks(event: str, *args):
     return None
 
 
-# s03 permission check logic, now wrapped as a hook
-# DENY_LIST = ["rm -rf /", "sudo", "shutdown", "reboot", "mkfs", "dd if="]
-# RISK_LIST = ["rm ", "> /etc/", "chmod 777"]
-
-
 # ═══════════ OnThinking ══════════════════════════════════════
 # 打印思考痕迹
 def show_thinking_hook(block) -> None:
     config = load_config()
     if config.get("show_thinking", True):  # 是否打印思考过程
         # print(f"[HOOK] Thinking: [blue]{block.thinking}[/blue]\n")
-        print(f"[HOOK] [grey80]Thinking: {block.thinking}[/grey80]\n")
+        print(f"[HOOK] [grey93]Thinking: {block.thinking}[/grey93]\n")
     return None
 
 

@@ -137,20 +137,6 @@ def _normalize_todos(todos):
     return todos, None
 
 
-"""
-run_todo_write([
-    {"content": "读论文", "status": "pending"},
-    {"content": "写实验代码", "status": "in_progress"},
-    {"content": "提交报告", "status": "completed"},
-])
-转换为：
-## Current Tasks
-  [ ] 读论文
-  [▸] 写实验代码
-  [✓] 提交报告
-"""
-
-
 def run_todo_write(todos: list) -> str:
     global CURRENT_TODOS
     todos, error = _normalize_todos(todos)
