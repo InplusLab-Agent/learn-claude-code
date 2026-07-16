@@ -40,9 +40,7 @@ def agent_loop(messages: list):
     while True:
         # s05: nag reminder — inject if model hasn't updated todos for 3 rounds
         if rounds_since_todo >= 3 and messages:
-            messages.append(
-                {"role": "user", "content": "<reminder>Update your todos.</reminder>"}
-            )
+            messages.append({"role": "user", "content": "<reminder>Update your todos.</reminder>"}) # fmt: skip
             rounds_since_todo = 0
 
         response = client.messages.create(
@@ -50,7 +48,7 @@ def agent_loop(messages: list):
             system=prompt,
             messages=messages,
             tools=TOOLS,
-            max_tokens=8000,
+            max_tokens=15000,
         )
         # Append assistant turn
         messages.append({"role": "assistant", "content": response.content})
@@ -109,6 +107,10 @@ def agent_loop(messages: list):
             # Feed tool results back, loop continues
             messages.append({"role": "user", "content": results})
         else:
+            force = trigger_hooks("Stop", response)  # 当 force为None时，正常结束。
+            if force:
+                messages.append({"role": "user", "content": force})
+                continue
             return
 
 

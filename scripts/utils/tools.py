@@ -4,6 +4,31 @@ import json
 from utils.shell import run_shell
 from utils.load_config import cwd
 
+r"""
+    \033[33m  黄色 yellow
+    \033[36m  青色 cyan
+    \033[32m  绿色 green
+    \033[0m   重置样式 reset
+    """
+"""
+  +---------+      +-------+      +------------------+
+  |  User   | ---> |  LLM  | ---> | TOOL_HANDLERS    |
+  | prompt  |      |       |      |  bash            |
+  +---------+      +---+---+      |  read_file       |
+                        ^         |  write_file      |
+                        | result  |  edit_file       |
+                        +---------+  glob            |
+                                      todo_write ← NEW
+                                   +------------------+
+                                        |
+                         in-memory current_todos
+                                        |
+                        if rounds_since_todo >= 3:
+                          inject <reminder>
+"""
+
+CURRENT_TODOS: list[dict] = []
+
 
 # ═══════════════════════════════════════════════════════════
 #  NEW in s02: 4 个新工具
@@ -84,14 +109,20 @@ def run_glob(pattern: str) -> str:
 
 # 单下划线 _ 开头的函数表示“私有”、“内部使用”，也不会被另一个文件的import导入。
 def _normalize_todos(todos):
+
+    # 初步标准化解析 todos 的格式
     if isinstance(todos, str):
+        # todos 是字符串时，尝试将其解析为 JSON 或 Python 字面量列表
         try:
             todos = json.loads(todos)
         except json.JSONDecodeError:
             try:
+                # ast.literal_eval() 把字符串按照Python字面量语义解析为对象，例如"[{'content': '写代码', 'status': 'pending'}]"
                 todos = ast.literal_eval(todos)
             except (SyntaxError, ValueError):
                 return None, "Error: todos must be a list or JSON array string"
+
+    # 检查转换后的 todos
     if not isinstance(todos, list):
         return None, "Error: todos must be a list"
     for i, t in enumerate(todos):
@@ -104,18 +135,34 @@ def _normalize_todos(todos):
     return todos, None
 
 
+"""
+run_todo_write([
+    {"content": "读论文", "status": "pending"},
+    {"content": "写实验代码", "status": "in_progress"},
+    {"content": "提交报告", "status": "completed"},
+])
+转换为：
+## Current Tasks
+  [ ] 读论文
+  [▸] 写实验代码
+  [✓] 提交报告
+"""
+
+
 def run_todo_write(todos: list) -> str:
     global CURRENT_TODOS
     todos, error = _normalize_todos(todos)
     if error:
         return error
+
+
     CURRENT_TODOS = todos
-    lines = ["\n\033[33m## Current Tasks\033[0m"]
+    lines = ["\n[yellow]## Current Tasks[/yellow]"]
     for t in CURRENT_TODOS:
         icon = {
             "pending": " ",
-            "in_progress": "\033[36m▸\033[0m",
-            "completed": "\033[32m✓\033[0m",
+            "in_progress": "[cyan]▸[/cyan]",
+            "completed": "[green]✓[/green]",
         }[t["status"]]
         lines.append(f"  [{icon}] {t['content']}")
     print("\n".join(lines))

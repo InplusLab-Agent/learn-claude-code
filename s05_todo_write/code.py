@@ -136,7 +136,7 @@ def run_glob(pattern: str) -> str:
 # ═══════════════════════════════════════════════════════════
 
 
-# 单下划线 _ 开头的函数表示“私有”、“内部使用”，也不会被另一个文件的import导入。
+
 def _normalize_todos(todos):
     if isinstance(todos, str):
         try:
