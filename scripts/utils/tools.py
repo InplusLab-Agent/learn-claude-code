@@ -3,6 +3,7 @@ import ast
 import json
 from utils.shell import run_shell
 from utils.load_config import cwd
+from rich import print
 
 r"""
     \033[33m  黄色 yellow
@@ -44,7 +45,7 @@ def run_bash(command: str) -> str:
     return run_shell(command, cwd)
 
 
-def run_read(path: str, limit: int | None = None) -> str:
+def run_read(path: str, limit: int | None = None, start_line: int = 1) -> str:
     try:
         try:
             text = safe_path(path).read_text(encoding="utf-8")
@@ -52,6 +53,7 @@ def run_read(path: str, limit: int | None = None) -> str:
             text = safe_path(path).read_text(encoding="gbk", errors="replace")
         lines = text.splitlines()
         # lines = safe_path(path).read_text().splitlines()
+        lines = lines[start_line - 1 :]  # 新增起始行号
         if limit and limit < len(lines):
             lines = lines[:limit] + [f"... ({len(lines) - limit} more lines)"]
         return "\n".join(lines)
@@ -155,7 +157,6 @@ def run_todo_write(todos: list) -> str:
     if error:
         return error
 
-
     CURRENT_TODOS = todos
     lines = ["\n[yellow]## Current Tasks[/yellow]"]
     for t in CURRENT_TODOS:
@@ -199,7 +200,15 @@ TOOLS = [
         "description": "Read file contents.",
         "input_schema": {
             "type": "object",
-            "properties": {"path": {"type": "string"}, "limit": {"type": "integer"}},
+            "properties": {
+                "path": {"type": "string"},
+                "limit": {"type": "integer"},
+                "start_line": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "1-based line number to start reading from. Defaults to 1.",
+                },
+            },
             "required": ["path"],
         },
     },

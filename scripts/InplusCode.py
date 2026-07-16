@@ -85,7 +85,10 @@ def agent_loop(messages: list):
 
                     # ── Tool execution ────────────────────────────────────────
                     handler = TOOL_HANDLERS.get(block.name)
-                    output = (handler(**block.input) if handler else f"Unknown: {block.name}") # fmt: skip
+                    try:
+                        output = handler(**block.input) if handler else f"Unknown: {block.name}" # fmt: skip
+                    except TypeError as e:
+                        output = f"Error: {e}"
                     # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
 
                     trigger_hooks("PostToolUse", block, output)  # s04: post hook

@@ -148,7 +148,7 @@ def show_thinking_hook(block) -> None:
     config = load_config()
     if config.get("show_thinking", True):  # 是否打印思考过程
         # print(f"[HOOK] Thinking: [blue]{block.thinking}[/blue]\n")
-        print(f"[HOOK] [grey20]Thinking: {block.thinking}[/grey20]\n")
+        print(f"[HOOK] [grey80]Thinking: {block.thinking}[/grey80]\n")
     return None
 
 
