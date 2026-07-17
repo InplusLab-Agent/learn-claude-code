@@ -94,7 +94,7 @@ PERMISSION_RULES = [
     {
         "tools": ["write_file", "edit_file"],
         # fmt: off
-        "check": lambda args: not (cwd / args.get("path", "")).resolve().is_relative_to(cwd),
+        "check": lambda args: not (WORKDIR / args.get("path", "")).resolve().is_relative_to(WORKDIR),
         # fmt: on
         "message": "Writing outside workspace",
     },

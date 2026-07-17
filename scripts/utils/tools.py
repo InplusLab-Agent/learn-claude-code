@@ -3,17 +3,10 @@ import ast
 import json
 from utils.shell import run_shell
 
-# from scripts.legacy.load_config import cwd
 from rich import print
 from utils.hooks import trigger_hooks
-from utils.system import SUB_SYSTEM, client, MODEL, cwd
+from utils.system import SUB_SYSTEM, MODEL, WORKDIR, client, skill_registry
 
-r"""
-    \033[33m  黄色 yellow
-    \033[36m  青色 cyan
-    \033[32m  绿色 green
-    \033[0m   重置样式 reset
-    """
 """
   +---------+      +-------+      +------------------+
   |  User   | ---> |  LLM  | ---> | TOOL_HANDLERS    |
@@ -38,14 +31,14 @@ CURRENT_TODOS: list[dict] = []
 #  NEW in s02: 4 个新工具
 # ═══════════════════════════════════════════════════════════
 def safe_path(p: str) -> Path:
-    path = (cwd / p).resolve()
-    if not path.is_relative_to(cwd):
+    path = (WORKDIR / p).resolve()
+    if not path.is_relative_to(WORKDIR):
         raise ValueError(f"Path escapes workspace: {p}")
     return path
 
 
 def run_bash(command: str) -> str:
-    return run_shell(command, cwd)
+    return run_shell(command, WORKDIR)
 
 
 def run_read(path: str, limit: int | None = None, start_line: int = 1) -> str:
@@ -99,8 +92,8 @@ def run_glob(pattern: str) -> str:
 
     try:
         results = []
-        for match in g.glob(pattern, root_dir=cwd):
-            if (cwd / match).resolve().is_relative_to(cwd):
+        for match in g.glob(pattern, root_dir=WORKDIR):
+            if (WORKDIR / match).resolve().is_relative_to(WORKDIR):
                 results.append(match)
         return "\n".join(results) if results else "(no matches)"
     except Exception as e:
@@ -275,6 +268,7 @@ TOOL_HANDLERS = {
     **SUB_HANDLERS,
     "todo_write": run_todo_write,
     "task": spawn_subagent,
+    "load_skill": skill_registry.load_skill,
 }
 
 
@@ -376,6 +370,16 @@ TOOLS = [
             "type": "object",
             "properties": {"description": {"type": "string"}},
             "required": ["description"],
+        },
+    },
+    # s07: skill tool (catalog is already in SYSTEM prompt, this loads full content)
+    {
+        "name": "load_skill",
+        "description": "Load the full content of a skill by name.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
         },
     },
 ]

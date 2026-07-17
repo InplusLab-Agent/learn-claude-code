@@ -57,11 +57,11 @@ s04: Hooks — move extension logic out of the loop, onto hooks.
 # ═══════════════════════════════════════════════════════════
 import os
 
-# from utils.load_config import cwd, load_config
-from utils.system import cwd, load_config
 from rich import print
 from typing_extensions import deprecated
 from anthropic.types import Message, ToolUseBlock
+
+from utils.system import WORKDIR, load_config
 
 # ────────────── DENY / RISK command LIST ───────────────────────────────────────────
 # 高风险但不一定绝对禁止：命中后需要进一步询问/确认/拦截
@@ -181,8 +181,8 @@ def permission_hook(block) -> str | None:
 
     # 检查是否越出工作区操作
     elif block.name in ("write_file", "edit_file"):
-        # (cwd / path) 表示 当前 "工作目录" + "对象相对路径"，   .resovle()表示转化为绝对目录。
-        if not (cwd / path).resolve().is_relative_to(cwd):
+        # (WORKDIR / path) 表示 当前 "工作目录" + "对象相对路径"，   .resovle()表示转化为绝对目录。
+        if not (WORKDIR / path).resolve().is_relative_to(WORKDIR):
             print(f"\n[yellow]Writing outside workspace[/yellow]  Tool: {block.name}({block.input})")  # fmt: skip
             choice = input("  Allow? [y/N] ").strip().lower()
             if choice not in ("y", "yes"):
@@ -228,7 +228,7 @@ def show_tool_use_hook(block, output):
 # ════════════ UserPromptSubmit ═══════════════════════════════
 # log user input before it reaches the LLM
 def context_inject_hook(query: str):
-    print(f"[HOOK] UserPromptSubmit: working in {cwd}")
+    print(f"[HOOK] UserPromptSubmit: working in {WORKDIR}")
     return None
 
 
