@@ -1,7 +1,3 @@
-import os
-from anthropic import Anthropic
-from dotenv import load_dotenv
-
 try:
     import readline
 
@@ -13,21 +9,16 @@ try:
 except ImportError:
     pass
 
-load_dotenv(override=True)  # 读取 .env 文件，把里面的变量加载进系统环境变量。
 
-
-from utils.shell import build_agent_prompt
-from utils.load_config import cwd
-from utils.tools import *
+# from utils.shell import build_agent_prompt
+# from utils.load_config import cwd
+from utils.tools import TOOLS, TOOL_HANDLERS
 from utils.hooks import trigger_hooks
 from rich import print
+from utils.system import SYSTEM, client, MODEL
 
-client = Anthropic(
-    base_url=os.getenv("ANTHROPIC_BASE_URL"),
-    auth_token=os.getenv("ANTHROPIC_AUTH_TOKEN"),
-)
-model = os.getenv("MODEL_ID")
-prompt = build_agent_prompt(cwd)
+# prompt = build_agent_prompt(cwd)
+
 rounds_since_todo = 0
 
 
@@ -41,8 +32,8 @@ def agent_loop(messages: list):
             rounds_since_todo = 0
 
         response = client.messages.create(
-            model=model,
-            system=prompt,
+            model=MODEL,
+            system=SYSTEM,
             messages=messages,
             tools=TOOLS,
             max_tokens=15000,

@@ -411,6 +411,105 @@ function drawSelectionEffect() {
 }
 
 // ============================================================
+//  ✦ AI 落子提示绘制（蓝色系高亮，与玩家选中区分） ✦
+// ============================================================
+function drawAISuggestion() {
+    if (!aiSuggestion || gameOver) return;
+
+    const { fromR, fromC, toR, toC } = aiSuggestion;
+    const fromP = toPixel(fromR, fromC);
+    const toP = toPixel(toR, toC);
+    const time = animFrame * 0.05;
+    const pulse = 0.5 + 0.5 * Math.sin(time);
+
+    // ---- 1. 起点：蓝色脉动光晕 ----
+    const glowRadius = PIECE_RADIUS + 14 + pulse * 6;
+    const glow = ctx.createRadialGradient(fromP.x, fromP.y, 0, fromP.x, fromP.y, glowRadius);
+    glow.addColorStop(0, 'rgba(30, 144, 255, 0.35)');
+    glow.addColorStop(0.5, 'rgba(30, 144, 255, 0.15)');
+    glow.addColorStop(1, 'rgba(30, 144, 255, 0)');
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(fromP.x, fromP.y, glowRadius, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // ---- 2. 起点：蓝色光环 ----
+    ctx.beginPath();
+    ctx.arc(fromP.x, fromP.y, PIECE_RADIUS + 5 + pulse * 3, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(30, 144, 255, ${0.4 + 0.3 * (1 - pulse)})`;
+    ctx.lineWidth = 2.5 + pulse * 1.5;
+    ctx.shadowColor = 'rgba(30, 144, 255, 0.5)';
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // ---- 3. 终点：蓝色目标十字 + 脉动圆 ----
+    // 外圈
+    ctx.beginPath();
+    ctx.arc(toP.x, toP.y, PIECE_RADIUS + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(30, 144, 255, ${0.4 + 0.3 * pulse})`;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 内圈
+    ctx.beginPath();
+    ctx.arc(toP.x, toP.y, 8 + pulse * 4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(30, 144, 255, ${0.2 + 0.2 * pulse})`;
+    ctx.fill();
+
+    // 中心点
+    ctx.beginPath();
+    ctx.arc(toP.x, toP.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(30, 144, 255, ${0.5 + 0.3 * pulse})`;
+    ctx.fill();
+
+    // ---- 4. 箭头连线：从起点到终点 ----
+    const angle = Math.atan2(toP.y - fromP.y, toP.x - fromP.x);
+    const startR = PIECE_RADIUS + 8;
+    const endR = PIECE_RADIUS + 8;
+    const sx = fromP.x + Math.cos(angle) * startR;
+    const sy = fromP.y + Math.sin(angle) * startR;
+    const ex = toP.x - Math.cos(angle) * endR;
+    const ey = toP.y - Math.sin(angle) * endR;
+
+    // 虚线
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.strokeStyle = `rgba(30, 144, 255, ${0.3 + 0.2 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 箭头头
+    const arrowSize = 10;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(
+        ex - arrowSize * Math.cos(angle - 0.4),
+        ey - arrowSize * Math.sin(angle - 0.4)
+    );
+    ctx.lineTo(
+        ex - arrowSize * Math.cos(angle + 0.4),
+        ey - arrowSize * Math.sin(angle + 0.4)
+    );
+    ctx.closePath();
+    ctx.fillStyle = `rgba(30, 144, 255, ${0.5 + 0.3 * pulse})`;
+    ctx.fill();
+
+    // ---- 5. 文字提示 "AI →" ----
+    ctx.font = 'bold 14px "Microsoft YaHei", "KaiTi", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = `rgba(30, 144, 255, ${0.7 + 0.3 * pulse})`;
+    ctx.fillText('🤖', toP.x, toP.y - PIECE_RADIUS - 10);
+}
+
+// ============================================================
 //  ✦ 增强棋子绘制：选中时浮起效果 ✦
 // ============================================================
 function drawPiece(row, col, piece) {
@@ -551,6 +650,9 @@ function drawBoard() {
 
     // ✦ 先绘制选中特效（在棋子下方） ✦
     drawSelectionEffect();
+
+    // ✦ 再绘制 AI 落子提示 ✦
+    drawAISuggestion();
 
     // 画棋子
     for (let r = 0; r < ROWS; r++) {
@@ -1041,6 +1143,7 @@ function restartGame() {
     redCaptured = [];
     blackCaptured = [];
     isAIThinking = false;
+    aiSuggestion = null;
     updateTurnDisplay();
     // 人机模式下显示对应信息
     if (isAIMode) {
@@ -1071,6 +1174,7 @@ function restartGame() {
 let isAIMode = false;           // 当前是否人机模式
 let aiColor = 'black';          // AI 执黑（红方先手玩家）
 let isAIThinking = false;       // AI 正在思考中
+let aiSuggestion = null;        // AI 建议走法提示 { fromR, fromC, toR, toC }
 
 /** 获取某颜色的所有合法走法 */
 function getAllMoves(color) {
@@ -1296,8 +1400,9 @@ function aiMakeMove() {
 
     isAIThinking = true;
     statusEl.textContent = '🤔 AI 思考中...';
+    aiSuggestion = null;
 
-    // 使用 setTimeout 让界面先更新，再计算
+    // 先让界面更新，然后计算最佳走法
     setTimeout(() => {
         const move = findBestMove(aiColor);
 
@@ -1315,64 +1420,77 @@ function aiMakeMove() {
             return;
         }
 
-        // 执行 AI 走棋
-        const { fromR, fromC, toR, toC } = move;
-        const captured = board[toR][toC];
-        board[toR][toC] = board[fromR][fromC];
-        board[fromR][fromC] = null;
-        moveHistory.push({ fromR, fromC, toR, toC, captured });
-
-        if (captured) {
-            if (aiColor === 'red') redCaptured.push(captured);
-            else blackCaptured.push(captured);
-            SoundManager.capture();
-            updateCapturedDisplay();
-        } else {
-            SoundManager.move();
-        }
-
-        selected = null;
-        validMoves = [];
-
-        // 切换回合
-        const enemy = currentTurn === 'red' ? 'black' : 'red';
-        currentTurn = enemy;
-        updateTurnDisplay();
-
-        // 检查对方状态
-        if (isUnderAttack(enemy)) {
-            if (hasLegalMoves(enemy)) {
-                statusEl.textContent = `⚡ 将军！`;
-                statusEl.className = 'check';
-                SoundManager.check();
-            } else {
-                statusEl.textContent = `🏆 ${currentTurn === 'red' ? '黑' : '红'}方获胜！将杀！`;
-                statusEl.className = '';
-                gameOver = true;
-                stopAnimation();
-                SoundManager.win();
-            }
-        } else {
-            if (!hasLegalMoves(enemy)) {
-                statusEl.textContent = `🏆 ${currentTurn === 'red' ? '黑' : '红'}方获胜！困毙！`;
-                statusEl.className = '';
-                gameOver = true;
-                stopAnimation();
-                SoundManager.win();
-            } else {
-                statusEl.textContent = '';
-                statusEl.className = '';
-            }
-        }
-
-        isAIThinking = false;
+        // 显示 AI 落子提示
+        aiSuggestion = move;
+        const pieceChar = getPieceChar(board[move.fromR][move.fromC]);
+        statusEl.textContent = `🤖 AI 落子提示：${pieceChar} →`;
         drawBoard();
 
-        // 如果切换后又是 AI 回合（玩家执黑，AI 执红的情况），继续走棋
-        if (!gameOver && isAIMode && currentTurn === aiColor) {
-            aiMakeMove();
-        }
-    }, 100); // 100ms 延迟让界面友好
+        // 模拟思考间隔 0.3~0.8 秒（随机），让玩家看到提示
+        const thinkDelay = 300 + Math.random() * 500;
+
+        setTimeout(() => {
+            aiSuggestion = null; // 清除提示
+
+            // 执行 AI 走棋
+            const { fromR, fromC, toR, toC } = move;
+            const captured = board[toR][toC];
+            board[toR][toC] = board[fromR][fromC];
+            board[fromR][fromC] = null;
+            moveHistory.push({ fromR, fromC, toR, toC, captured });
+
+            if (captured) {
+                if (aiColor === 'red') redCaptured.push(captured);
+                else blackCaptured.push(captured);
+                SoundManager.capture();
+                updateCapturedDisplay();
+            } else {
+                SoundManager.move();
+            }
+
+            selected = null;
+            validMoves = [];
+
+            // 切换回合
+            const enemy = currentTurn === 'red' ? 'black' : 'red';
+            currentTurn = enemy;
+            updateTurnDisplay();
+
+            // 检查对方状态
+            if (isUnderAttack(enemy)) {
+                if (hasLegalMoves(enemy)) {
+                    statusEl.textContent = `⚡ 将军！`;
+                    statusEl.className = 'check';
+                    SoundManager.check();
+                } else {
+                    statusEl.textContent = `🏆 ${currentTurn === 'red' ? '黑' : '红'}方获胜！将杀！`;
+                    statusEl.className = '';
+                    gameOver = true;
+                    stopAnimation();
+                    SoundManager.win();
+                }
+            } else {
+                if (!hasLegalMoves(enemy)) {
+                    statusEl.textContent = `🏆 ${currentTurn === 'red' ? '黑' : '红'}方获胜！困毙！`;
+                    statusEl.className = '';
+                    gameOver = true;
+                    stopAnimation();
+                    SoundManager.win();
+                } else {
+                    statusEl.textContent = '';
+                    statusEl.className = '';
+                }
+            }
+
+            isAIThinking = false;
+            drawBoard();
+
+            // 如果切换后又是 AI 回合（玩家执黑，AI 执红的情况），继续走棋
+            if (!gameOver && isAIMode && currentTurn === aiColor) {
+                aiMakeMove();
+            }
+        }, thinkDelay);
+    }, 50);
 }
 
 /** 切换对战模式 */

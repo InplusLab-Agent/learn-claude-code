@@ -56,11 +56,12 @@ s04: Hooks — move extension logic out of the loop, onto hooks.
 #  NEW in s04: Hook System (s03 permission logic now via hooks)
 # ═══════════════════════════════════════════════════════════
 import os
-from utils.load_config import cwd, load_config
-from utils.tools import *
+
+# from utils.load_config import cwd, load_config
+from utils.system import cwd, load_config
 from rich import print
 from typing_extensions import deprecated
-from anthropic.types import Message
+from anthropic.types import Message, ToolUseBlock
 
 # ────────────── DENY / RISK command LIST ───────────────────────────────────────────
 # 高风险但不一定绝对禁止：命中后需要进一步询问/确认/拦截
@@ -191,10 +192,22 @@ def permission_hook(block) -> str | None:
     return None  #  None: 表示允许工具调用继续
 
 
-# log every tool call.
-def log_hook(block):
+@deprecated("[已弃用] (since: 2026-07-17)")
+def log_hook_legacy(block):
     args_preview = str(list(block.input.values())[:2])[:60]
     print(f"[HOOK] {block.name}({args_preview})")
+    return None
+
+
+# log every tool call.
+def log_hook(block: ToolUseBlock):
+    args = str(list(block.input.values())[:2])  # :2取工具定义的前2个参数
+    if block.name == "task":
+        # task 的 ToolUseBlock的args包含了父agent分发给sbuagent的任务描述，尽可能展示完整。
+        args_preview = args[:100]
+    else:
+        args_preview = args[:60]
+    print(f"[HOOK] {block.name}({args_preview}{' ...' if len(args) > len(args_preview) else ''})") # fmt: skip
     return None
 
 
