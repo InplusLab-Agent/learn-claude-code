@@ -17,7 +17,7 @@ Deprecated since:
 #  NEW in s03: Three-Gate Permission Pipeline
 # ═══════════════════════════════════════════════════════════
 import os
-from utils.load_config import cwd
+from scripts.legacy.load_config import cwd
 from utils.tools import *
 from rich import print
 

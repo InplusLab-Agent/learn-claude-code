@@ -56,8 +56,9 @@ s04: Hooks — move extension logic out of the loop, onto hooks.
 #  NEW in s04: Hook System (s03 permission logic now via hooks)
 # ═══════════════════════════════════════════════════════════
 import os
-from utils.load_config import cwd, load_config
-from utils.tools import *
+
+# from utils.load_config import cwd, load_config
+from utils.system import cwd, load_config
 from rich import print
 from typing_extensions import deprecated
 from anthropic.types import Message

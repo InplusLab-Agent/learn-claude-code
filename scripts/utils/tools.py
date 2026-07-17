@@ -2,8 +2,11 @@ from pathlib import Path
 import ast
 import json
 from utils.shell import run_shell
-from utils.load_config import cwd
+
+# from scripts.legacy.load_config import cwd
 from rich import print
+from utils.hooks import trigger_hooks
+from utils.system import SUB_SYSTEM, client, MODEL, cwd
 
 r"""
     \033[33m  黄色 yellow
@@ -157,21 +160,118 @@ def run_todo_write(todos: list) -> str:
 
 
 # ═══════════════════════════════════════════════════════════
+#  NEW in s06: Subagent — fresh messages[], summary only
+# ═══════════════════════════════════════════════════════════
+def _extract_text(content) -> str:
+    """Extract text from message content blocks."""
+    if not isinstance(content, list):
+        return str(content)
+    return "\n".join(
+        getattr(b, "text", "") for b in content if getattr(b, "type", None) == "text"
+    )
+
+
+# —— s06: Spawn a subagent with fresh messages[], return summary only. ————————————
+def spawn_subagent(description: str) -> str:
+
+    print("\n[magenta][Subagent spawned][/magenta]")
+
+    messages = [{"role": "user", "content": description}]  # fresh context
+
+    for _ in range(30):  # safety limit 限制 subagent 的最大推理请求次数不超过30
+        response = client.messages.create(
+            model=MODEL,
+            system=SUB_SYSTEM,
+            messages=messages,
+            tools=SUB_TOOLS,
+            max_tokens=8000,
+        )
+        messages.append({"role": "assistant", "content": response.content})
+
+        results = []
+        if response.stop_reason == "tool_use":
+            for block in response.content:
+
+                if block.type == "thinking":
+                    trigger_hooks("OnThinking", block)
+                
+                elif block.type == "text":
+                    print(f"[blue]{block.text}[/blue]\n")
+                
+                elif block.type == "tool_use":
+                    # Issue 1: subagent also runs hooks (permissions apply)
+                    blocked = trigger_hooks("PreToolUse", block)
+                    if blocked:
+                        results.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": str(blocked),
+                            }
+                        )
+                        continue
+
+                    # ── Tool execution ────────────────────────────────────────
+                    handler = SUB_HANDLERS.get(block.name)
+
+                    try:  # 拦截异常
+                        output = handler(**block.input) if handler else f"Unknown: {block.name}" # fmt: skip
+                        # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
+                    except TypeError as e:
+                        output = f"Error: {e}"
+
+                    trigger_hooks("PostToolUse", block, output)  # s04: post hook
+                    print(f"  [bright_black][sub] {block.name}: {str(output)[:100]}[/bright_black]") # fmt: skip
+
+                    results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": output,
+                        }
+                    )
+
+            # Feed tool results back, loop continues
+            messages.append({"role": "user", "content": results})
+        else:
+            # 结束 subagent 的 Loop
+            break
+
+    # Issue 5: fallback if safety limit hit during tool_use
+    result = _extract_text(messages[-1]["content"])
+    if not result:
+        # last message is tool_result, look backwards for assistant text
+        for msg in reversed(messages):
+            if msg["role"] == "assistant":
+                result = _extract_text(msg["content"])
+                if result:
+                    break
+        if not result:
+            result = "Subagent stopped after 30 turns without final answer."
+    print("[magenta][Subagent done][/magenta]")
+    return result  # only summary, entire message history discarded
+
+
+# ═══════════════════════════════════════════════════════════
 #  NEW in s02: 工具分发映射（s01 是硬编码 run_bash，现在改为查表）
 # ═══════════════════════════════════════════════════════════
-
-TOOL_HANDLERS = {
+SUB_HANDLERS = {
     "bash": run_bash,
     "read_file": run_read,
     "write_file": run_write,
     "edit_file": run_edit,
     "glob": run_glob,
-    "todo_write": run_todo_write,
 }
 
 
-# ── Tool definition: 运行命令行────────────────────────────
-TOOLS = [
+TOOL_HANDLERS = {
+    **SUB_HANDLERS,
+    "todo_write": run_todo_write,
+    "task": spawn_subagent,
+}
+
+
+SUB_TOOLS = [
     {
         "name": "bash",
         "description": "Run a shell command.",
@@ -229,6 +329,12 @@ TOOLS = [
             "required": ["pattern"],
         },
     },
+]
+
+
+# ── Tool definition: 运行命令行────────────────────────────
+TOOLS = [
+    *SUB_TOOLS,  # 对一个字面量进行进行可迭代对象解包，适配到目标类型里。
     # s05: new tool
     {
         "name": "todo_write",
@@ -253,6 +359,16 @@ TOOLS = [
                 }
             },
             "required": ["todos"],
+        },
+    },
+    # s06: new task tool to dispatch subagent
+    {
+        "name": "task",
+        "description": "Launch a subagent to handle a complex subtask. Returns only the final conclusion.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"description": {"type": "string"}},
+            "required": ["description"],
         },
     },
 ]
