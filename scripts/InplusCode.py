@@ -10,14 +10,10 @@ except ImportError:
     pass
 
 
-# from utils.shell import build_agent_prompt
-# from utils.load_config import cwd
 from utils.tools import TOOLS, TOOL_HANDLERS
 from utils.hooks import trigger_hooks
+from utils.system import SYSTEM, MODEL, client
 from rich import print
-from utils.system import SYSTEM, client, MODEL
-
-# prompt = build_agent_prompt(cwd)
 
 rounds_since_todo = 0
 

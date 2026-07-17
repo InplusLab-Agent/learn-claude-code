@@ -162,10 +162,8 @@ def permission_hook(block) -> str | None:
     if mode != "strict":
         return ValueError(f"Permission mode is {mode}, expected 'strict'")
 
-    command = block.input.get(
-        "command", ""
-    ).lower()  # block.input，这是大模型生成的工具调用的参数
-    path = block.input.get("path", "")
+    command = block.input.get("command", "").lower()  # fmt: skip
+    path = block.input.get("path", "")  # block.input，这是大模型生成的工具调用的参数
 
     # 检查 bash 命令是否有在 DENY_LIST 中的命令或 RISK_LIST 中的命令
     if block.name == "bash":
@@ -237,7 +235,7 @@ def context_inject_hook(query: str):
 # ═════════════ Stop ══════════════════════════════════════
 # print summary when loop is about to exit
 @deprecated("[已弃用] 请采用传入 response参数的方法。")
-def summary_hook(messages: list):
+def summary_hook_legacy(messages: list):
     tool_count = sum(
         1
         for m in messages

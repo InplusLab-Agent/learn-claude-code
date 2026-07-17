@@ -194,10 +194,10 @@ def spawn_subagent(description: str) -> str:
 
                 if block.type == "thinking":
                     trigger_hooks("OnThinking", block)
-                
+
                 elif block.type == "text":
                     print(f"[blue]{block.text}[/blue]\n")
-                
+
                 elif block.type == "tool_use":
                     # Issue 1: subagent also runs hooks (permissions apply)
                     blocked = trigger_hooks("PreToolUse", block)
@@ -238,15 +238,22 @@ def spawn_subagent(description: str) -> str:
             break
 
     # Issue 5: fallback if safety limit hit during tool_use
+    """
+        情况A（正常结束）：最后是 assistant 的文字回复
+        [..., assistant: "任务完成，结果是XXX"]
+
+        情况B（被30轮中断）：最后是 user 的 tool_results
+        [..., assistant: <tool_use>, user: [tool_result, tool_result, ...]]
+    """
     result = _extract_text(messages[-1]["content"])
     if not result:
         # last message is tool_result, look backwards for assistant text
         for msg in reversed(messages):
-            if msg["role"] == "assistant":
+            if msg["role"] == "assistant": # 找到最近一条 assistant 的消息，提取它说过的文字作为结果。# fmt:skip
                 result = _extract_text(msg["content"])
                 if result:
                     break
-        if not result:
+        if not result: #最极端的情况——30 轮内 assistant 从来没说过一句纯文字（全是 tool_use 块），就返回这个降级提示。 # fmt: skip
             result = "Subagent stopped after 30 turns without final answer."
     print("[magenta][Subagent done][/magenta]")
     return result  # only summary, entire message history discarded
