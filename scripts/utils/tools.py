@@ -24,7 +24,7 @@ from utils.system import SUB_SYSTEM, MODEL, WORKDIR, client, skill_registry
                           inject <reminder>
 """
 
-CURRENT_TODOS: list[dict] = []
+current_todos: list[dict] = []
 
 
 # ═══════════════════════════════════════════════════════════
@@ -134,14 +134,14 @@ def _normalize_todos(todos):
 
 
 def run_todo_write(todos: list) -> str:
-    global CURRENT_TODOS
+    global current_todos
     todos, error = _normalize_todos(todos)
     if error:
         return error
 
-    CURRENT_TODOS = todos
+    current_todos = todos
     lines = ["\n[yellow]## Current Tasks[/yellow]"]
-    for t in CURRENT_TODOS:
+    for t in current_todos:
         icon = {
             "pending": " ",
             "in_progress": "[cyan]▸[/cyan]",
@@ -149,7 +149,7 @@ def run_todo_write(todos: list) -> str:
         }[t["status"]]
         lines.append(f"  [{icon}] {t['content']}")
     print("\n".join(lines))
-    return f"Updated {len(CURRENT_TODOS)} tasks"
+    return f"Updated {len(current_todos)} tasks"
 
 
 # ═══════════════════════════════════════════════════════════

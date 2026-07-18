@@ -35,9 +35,7 @@ class SkillRegistry:
 
         if not self.skills_dir.exists():
             return
-        for d in sorted(
-            self.skills_dir.iterdir()
-        ):  # iterdir() 列出 skills/ 目录下的所有子目录
+        for d in sorted(self.skills_dir.iterdir()):  # iterdir() 列出 skills/ 目录下的所有子目录 # fmt: skip
             if not d.is_dir():
                 continue
             manifest = d / "SKILL.md"
