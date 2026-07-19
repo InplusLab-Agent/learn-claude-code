@@ -14,7 +14,7 @@ from utils.tools import TOOLS, TOOL_HANDLERS
 from utils.hooks import trigger_hooks
 from utils.system import SYSTEM, MODEL, client
 from utils.context_compact import c1_snip_compact, c2_micro_compact, c3_tool_result_budget, c4_compact_history
-from utils.context_compact import reactive_compact, estimate_size, COMPACT_CHAR_LIMIT 
+from utils.context_compact import reactive_compact, estimate_size, COMPACT_CHAR_LIMIT
 from rich import print
 
 rounds_since_todo = 0
@@ -37,24 +37,17 @@ def agent_loop(messages: list):
 
         # s08 change: three preprocessors (0 API calls, cheap first)
         # Order matches CC source: budget → snip → micro
-        messages[:] = c3_tool_result_budget(messages)  # L3: persist large results first
-        messages[:] = c1_snip_compact(messages)  # L1: trim middle
-        messages[:] = c2_micro_compact(messages)  # L2: old result placeholders
+        # messages[:] = c3_tool_result_budget(messages)  # L3: persist large results first
+        # messages[:] = c1_snip_compact(messages)  # L1: trim middle
+        # messages[:] = c2_micro_compact(messages)  # L2: old result placeholders
 
         # s08 change: tokens still over threshold → LLM summary (1 API call)
-        if estimate_size(messages) > COMPACT_CHAR_LIMIT :
+        if estimate_size(messages) > COMPACT_CHAR_LIMIT:
             print("[auto compact]")
             messages[:] = c4_compact_history(messages)
 
         try:
-            response = client.messages.create(
-                model=MODEL,
-                system=SYSTEM,
-                messages=messages,
-                tools=TOOLS,
-                max_tokens=15000,
-                timeout=180,
-            )
+            response = client.messages.create(model=MODEL,system=SYSTEM,messages=messages,tools=TOOLS,max_tokens=15000,timeout=180,) # fmt: skip
             reactive_retries = 0  # reset on successful API call
         except Exception as e:
             if ("prompt_too_long" in str(e).lower() or "too many tokens" in str(e).lower()) and reactive_retries < MAX_REACTIVE_RETRIES: # fmt: skip
@@ -63,8 +56,6 @@ def agent_loop(messages: list):
                 reactive_retries += 1
                 continue
             raise
-
-        trigger_hooks("PostModelCall", response)
 
         # Append assistant turn
         messages.append({"role": "assistant", "content": response.content})
@@ -137,6 +128,8 @@ def agent_loop(messages: list):
             else:  # 只有没有遇到 compact/break 时才执行
                 # Feed tool results back, loop continues
                 messages.append({"role": "user", "content": results})
+
+            trigger_hooks("PostResponse", response)
 
         else:
             # TODO: fix the max_token bugs.

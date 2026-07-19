@@ -2,5 +2,7 @@
     "python.terminal.useEnvFile": true,
     "explorer.excludeGitIgnore": false,
     "black-formatter.importStrategy": "fromEnvironment",
-
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+    }
 }

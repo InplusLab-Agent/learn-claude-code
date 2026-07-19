@@ -47,12 +47,20 @@ def run_shell(command: str, cwd: str, timeout: int = 30) -> str:
             [*SHELL_PREFIX, command],
             cwd=cwd,
             capture_output=True,
-            text=True,
             timeout=timeout,
-            encoding="utf-8",
+            # text=True,
+            # encoding="utf-8",
         )
-        output = (result.stdout + result.stderr).strip()
+        raw = result.stdout + result.stderr
+        try:
+            output = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            output = raw.decode("gb18030", errors="replace")
+
+        output = output.strip()
         return output[:50000] if output else "(no output)"
+        # output = (result.stdout + result.stderr).strip()
+        # return output[:50000] if output else "(no output)"
     except subprocess.TimeoutExpired:
         return f"Error: Timeout ({timeout}s)"
     except (FileNotFoundError, OSError) as error:

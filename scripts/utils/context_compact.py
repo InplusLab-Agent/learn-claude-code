@@ -35,8 +35,7 @@ from typing_extensions import deprecated
 from anthropic.types import ContentBlock, TextBlock
 from utils.system import TOOL_RESULTS_DIR, MESSAGES_DIR, MODEL, client
 
-
-MAX_MESSAGES = 100 # C1 
+MAX_MESSAGES = 100  # C1
 
 PERSIST_THRESHOLD = 30000  # C3: 超过该字节数的 tool_result 将被持久化到磁盘
 
@@ -45,9 +44,6 @@ KEEP_RECENT = 20  # C2: 允许最近3条tool_result超长保留
 # CONTEXT_LIMIT = 50000
 COMPACT_CHAR_LIMIT = 400_000  # C4: 上下文最大字符数
 
-# class ContextState:
-#     def __init__(self,):
-# # #         self.
 
 def estimate_size(msgs):
     return len(str(msgs))
@@ -268,9 +264,7 @@ def _summarize_history(messages: list[dict]):
     )
     response = client.messages.create(model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=2000)
     # return ("\n".join(getattr(block, "text", "") for block in response.content if getattr(block, "type", None) == "text").strip() or "(empty summary)") # fmt: skip
-    return (
-        "\n".join(block.text for block in response.content if isinstance(block, TextBlock)).strip() or "(empty summary)"
-    )
+    return "\n".join(block.text for block in response.content if isinstance(block, TextBlock)).strip() or "(empty summary)"
 
 
 # C4 entry point
