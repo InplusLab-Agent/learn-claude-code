@@ -32,7 +32,7 @@ def _normalized_shell_command(command: str) -> str:
 
 
 # 运行指令获取结果。
-def run_shell(command: str, cwd: str, timeout: int = 120) -> str:
+def run_shell(command: str, cwd: str, timeout: int = 30) -> str:
 
     # 指令检查已经被hooks替代
     # dangerous = ["rm -rf /", "sudo", "shutdown", "reboot", "> /dev/"]
@@ -49,6 +49,7 @@ def run_shell(command: str, cwd: str, timeout: int = 120) -> str:
             capture_output=True,
             text=True,
             timeout=timeout,
+            encoding="utf-8",
         )
         output = (result.stdout + result.stderr).strip()
         return output[:50000] if output else "(no output)"

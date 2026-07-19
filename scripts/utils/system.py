@@ -62,7 +62,8 @@ SYSTEM = (
     f"The bash tool executes commands with {SHELL}."
     "For multi-step task, use todo_write to plan your steps. "
     "Update todo status as you work. "
-    "For complex sub-problems, use the task tool to spawn a subagent. "
+    # "For complex sub-problems, use the task tool to spawn a subagent. "
+    "For separate task, use the task tool to delegate and spawn a subagent. "
     f"Skills available:\n{_catalog}\n"
     "Use load_skill to get full details when needed. "
 )

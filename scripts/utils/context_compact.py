@@ -40,6 +40,10 @@ KEEP_RECENT = 3  # C2: 允许最近3条tool_result超长保留
 PERSIST_THRESHOLD = 30000  # C3: 超过该字节数的 tool_result 将被持久化到磁盘
 
 
+# class ContextState:
+#     def __init__(self,):
+# # #         self.
+
 def estimate_size(msgs):
     return len(str(msgs))
 
@@ -269,7 +273,7 @@ def c4_compact_history(messages: list[dict]):
     message_path = _persist_messages(messages)
     print(f"[message saved: {message_path}]")
     summary = _summarize_history(messages)
-    return [{"role": "user", "content": f"[Compacted]\n\n{summary}"}]
+    return [{"role": "user", "content": f"[Compacted] Conversation history has been summarized. \n\n{summary}"}]
 
 
 # Emergency: reactiveCompact — on API error

@@ -53,6 +53,7 @@ def agent_loop(messages: list):
                 messages=messages,
                 tools=TOOLS,
                 max_tokens=15000,
+                timeout = 180,
             )
             reactive_retries = 0  # reset on successful API call
         except Exception as e:
@@ -93,7 +94,7 @@ def agent_loop(messages: list):
                                 "content": "[Compacted. Conversation history has been summarized.]",
                             }
                         )
-                        messages.append({"role": "user", "content": results})
+                        # messages.append({"role": "user", "content": results})
                         break  # end current turn, start fresh with compacted context
 
                     # 是否启用拦截风险
@@ -131,9 +132,9 @@ def agent_loop(messages: list):
                             "content": output,
                         }
                     )
-
-            # Feed tool results back, loop continues
-            messages.append({"role": "user", "content": results})
+            else:  # 只有没有遇到 compact/break 时才执行
+                # Feed tool results back, loop continues
+                messages.append({"role": "user", "content": results})
 
         else:
             # TODO: fix the max_token bugs.
