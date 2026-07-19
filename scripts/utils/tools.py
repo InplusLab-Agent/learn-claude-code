@@ -159,9 +159,7 @@ def _extract_text(content) -> str:
     """Extract text from message content blocks."""
     if not isinstance(content, list):
         return str(content)
-    return "\n".join(
-        getattr(b, "text", "") for b in content if getattr(b, "type", None) == "text"
-    )
+    return "\n".join(getattr(b, "text", "") for b in content if getattr(b, "type", None) == "text")
 
 
 # —— s06: Spawn a subagent with fresh messages[], return summary only. ————————————
@@ -381,5 +379,11 @@ TOOLS = [
             "properties": {"name": {"type": "string"}},
             "required": ["name"],
         },
+    },
+    # s08 change: new compact tool — triggers compact_history, not a no-op
+    {
+        "name": "compact",
+        "description": "Summarize earlier conversation to free context space.",
+        "input_schema": {"type": "object", "properties": {"focus": {"type": "string"}}},
     },
 ]

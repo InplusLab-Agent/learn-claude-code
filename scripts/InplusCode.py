@@ -13,27 +13,56 @@ except ImportError:
 from utils.tools import TOOLS, TOOL_HANDLERS
 from utils.hooks import trigger_hooks
 from utils.system import SYSTEM, MODEL, client
+from utils.context_compact import c1_snip_compact, c2_micro_compact, c3_tool_result_budget, c4_compact_history
+from utils.context_compact import reactive_compact, estimate_size, CONTEXT_LIMIT
 from rich import print
 
 rounds_since_todo = 0
+# ═══════════════════════════════════════════════════════════
+#  agent_loop — s08 core: run compaction pipeline before LLM
+# ═══════════════════════════════════════════════════════════
+
+MAX_REACTIVE_RETRIES = 1  # retry limit for reactive compact
 
 
 # ── The core pattern: a while loop that calls tools until the model stops ──
 def agent_loop(messages: list):
     global rounds_since_todo
+    reactive_retries = 0
     while True:
         # s05: nag reminder — inject if model hasn't updated todos for 3 rounds
         if rounds_since_todo >= 3 and messages:
             messages.append({"role": "user", "content": "<reminder>Update your todos.</reminder>"}) # fmt: skip
             rounds_since_todo = 0
 
-        response = client.messages.create(
-            model=MODEL,
-            system=SYSTEM,
-            messages=messages,
-            tools=TOOLS,
-            max_tokens=15000,
-        )
+        # s08 change: three preprocessors (0 API calls, cheap first)
+        # Order matches CC source: budget → snip → micro
+        messages[:] = c3_tool_result_budget(messages)  # L3: persist large results first
+        messages[:] = c1_snip_compact(messages)  # L1: trim middle
+        messages[:] = c2_micro_compact(messages)  # L2: old result placeholders
+
+        # s08 change: tokens still over threshold → LLM summary (1 API call)
+        if estimate_size(messages) > CONTEXT_LIMIT:
+            print("[auto compact]")
+            messages[:] = c4_compact_history(messages)
+
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                system=SYSTEM,
+                messages=messages,
+                tools=TOOLS,
+                max_tokens=15000,
+            )
+            reactive_retries = 0  # reset on successful API call
+        except Exception as e:
+            if ("prompt_too_long" in str(e).lower() or "too many tokens" in str(e).lower()) and reactive_retries < MAX_REACTIVE_RETRIES: # fmt: skip
+                print("[reactive compact]")
+                messages[:] = reactive_compact(messages)
+                reactive_retries += 1
+                continue
+            raise
+
         # Append assistant turn
         messages.append({"role": "assistant", "content": response.content})
 
@@ -54,6 +83,19 @@ def agent_loop(messages: list):
 
                 elif block.type == "tool_use":
 
+                    # s08: compact tool triggers compact_history, not a no-op string
+                    if block.name == "compact":
+                        messages[:] = c4_compact_history(messages)
+                        results.append(
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": "[Compacted. Conversation history has been summarized.]",
+                            }
+                        )
+                        messages.append({"role": "user", "content": results})
+                        break  # end current turn, start fresh with compacted context
+
                     # 是否启用拦截风险
                     # s04 change: hook replaces hard-coded check_permission()
                     blocked = trigger_hooks("PreToolUse", block)
@@ -70,6 +112,7 @@ def agent_loop(messages: list):
                     # ── Tool execution ────────────────────────────────────────
                     handler = TOOL_HANDLERS.get(block.name)
                     try:  # 拦截异常
+
                         output = handler(**block.input) if handler else f"Unknown: {block.name}" # fmt: skip
                         # **dict 将字典展开为关键字参数传递给 handler 函数，例如handler(path="main.py", limit=50)
                     except TypeError as e:
@@ -91,6 +134,7 @@ def agent_loop(messages: list):
 
             # Feed tool results back, loop continues
             messages.append({"role": "user", "content": results})
+
         else:
             # TODO: fix the max_token bugs.
             force = trigger_hooks("Stop", response)  # 当 force为None时，正常结束。

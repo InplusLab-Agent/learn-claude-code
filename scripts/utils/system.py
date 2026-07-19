@@ -20,8 +20,8 @@ def load_config(path="scripts/config.yaml") -> dict:
 WORKDIR = Path(load_config().get("paths", {}).get("workspace", os.getcwd()))
 
 
-TRANSCRIPT_DIR = WORKDIR / ".transcripts"
-TOOL_RESULTS_DIR = WORKDIR / ".task_outputs" / "tool-results"
+MESSAGES_DIR = WORKDIR / ".inpluscode_cache" / ".messages"
+TOOL_RESULTS_DIR = WORKDIR / ".inpluscode_cache" / ".task_outputs" / "tool-results"
 
 MODEL = os.getenv("MODEL_ID")
 
