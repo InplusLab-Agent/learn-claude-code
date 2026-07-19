@@ -35,10 +35,15 @@ from typing_extensions import deprecated
 from anthropic.types import ContentBlock, TextBlock
 from utils.system import TOOL_RESULTS_DIR, MESSAGES_DIR, MODEL, client
 
-CONTEXT_LIMIT = 50000
-KEEP_RECENT = 3  # C2: 允许最近3条tool_result超长保留
+
+MAX_MESSAGES = 100 # C1 
+
 PERSIST_THRESHOLD = 30000  # C3: 超过该字节数的 tool_result 将被持久化到磁盘
 
+# KEEP_RECENT = 3  # C2: 允许最近3条tool_result超长保留
+KEEP_RECENT = 20  # C2: 允许最近3条tool_result超长保留
+# CONTEXT_LIMIT = 50000
+COMPACT_CHAR_LIMIT = 500_000  # C4: 上下文最大字符数
 
 # class ContextState:
 #     def __init__(self,):
@@ -80,7 +85,7 @@ def _message_has_tool_use(message: dict) -> bool:
 
 
 # message定长裁剪 —————— snipCompact — trim middle messages
-def c1_snip_compact(messages: list[dict], max_messages=50) -> list[dict]:
+def c1_snip_compact(messages: list[dict], max_messages=MAX_MESSAGES) -> list[dict]:
     # 保留首头部3+尾部k-3条messages，剩余的裁剪；
     # 特殊情况：不能把 assistant(tool_use) 和 其对应的 user(tool_result) 拆开
     """

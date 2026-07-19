@@ -6,3 +6,6 @@ permission:
   # off    - disables all permission checks, executes commands directly
   # strict - enables all gates including the most restrictive checks
   mode: 'off' 
+context:
+  show_usage: true
+  window_tokens: 200_000

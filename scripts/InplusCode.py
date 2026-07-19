@@ -14,7 +14,7 @@ from utils.tools import TOOLS, TOOL_HANDLERS
 from utils.hooks import trigger_hooks
 from utils.system import SYSTEM, MODEL, client
 from utils.context_compact import c1_snip_compact, c2_micro_compact, c3_tool_result_budget, c4_compact_history
-from utils.context_compact import reactive_compact, estimate_size, CONTEXT_LIMIT
+from utils.context_compact import reactive_compact, estimate_size, COMPACT_CHAR_LIMIT 
 from rich import print
 
 rounds_since_todo = 0
@@ -42,7 +42,7 @@ def agent_loop(messages: list):
         messages[:] = c2_micro_compact(messages)  # L2: old result placeholders
 
         # s08 change: tokens still over threshold → LLM summary (1 API call)
-        if estimate_size(messages) > CONTEXT_LIMIT:
+        if estimate_size(messages) > COMPACT_CHAR_LIMIT :
             print("[auto compact]")
             messages[:] = c4_compact_history(messages)
 
@@ -53,7 +53,7 @@ def agent_loop(messages: list):
                 messages=messages,
                 tools=TOOLS,
                 max_tokens=15000,
-                timeout = 180,
+                timeout=180,
             )
             reactive_retries = 0  # reset on successful API call
         except Exception as e:
@@ -63,6 +63,8 @@ def agent_loop(messages: list):
                 reactive_retries += 1
                 continue
             raise
+
+        trigger_hooks("PostModelCall", response)
 
         # Append assistant turn
         messages.append({"role": "assistant", "content": response.content})

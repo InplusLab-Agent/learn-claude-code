@@ -62,6 +62,7 @@ from typing_extensions import deprecated
 from anthropic.types import Message, ToolUseBlock
 
 from utils.system import WORKDIR, load_config
+from utils.context_compact import estimate_size
 
 # ────────────── DENY / RISK command LIST ───────────────────────────────────────────
 # 高风险但不一定绝对禁止：命中后需要进一步询问/确认/拦截
@@ -119,10 +120,11 @@ else:
     ]
 HOOKS = {
     "UserPromptSubmit": [],
+    "OnThinking": [],
+    "PostModelCall": [],
     "PreToolUse": [],
     "PostToolUse": [],
     "Stop": [],
-    "OnThinking": [],
 }
 
 
@@ -145,6 +147,44 @@ def show_thinking_hook(block) -> None:
     if config.get("show_thinking", True):  # 是否打印思考过程
         # print(f"[HOOK] Thinking: [blue]{block.thinking}[/blue]\n")
         print(f"[HOOK] [grey93]Thinking: {block.thinking}[/grey93]\n")
+    return None
+
+
+def context_usage_hook(response: Message) -> None:
+    context_config = load_config().get("context", {})
+
+    if not context_config.get("show_usage", True):
+        return None
+
+    window_tokens = context_config.get("window_tokens")
+    usage = response.usage
+
+    input_tokens = (
+        usage.input_tokens
+        + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+        + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+    )
+
+    if not window_tokens:
+        print(f"[dim][context] " f"{input_tokens:,} input tokens" f" · output +{usage.output_tokens:,}" f"[/dim]")
+        return None
+
+    percent = input_tokens / window_tokens * 100
+    remaining = max(window_tokens - input_tokens, 0)
+
+    bar_width = 20
+    filled = min(bar_width, round(bar_width * input_tokens / window_tokens))
+    bar = "█" * filled + "░" * (bar_width - filled)
+
+    print(
+        f"[dim][context] [{bar}] "
+        f"{input_tokens:,}/{window_tokens:,} "
+        f"({percent:.1f}%)"
+        f" · remaining {remaining:,}"
+        f" · output +{usage.output_tokens:,}"
+        f"[/dim]"
+    )
+
     return None
 
 
@@ -261,6 +301,7 @@ def summary_hook(response: Message) -> str | None:
 
 
 register_hook("UserPromptSubmit", context_inject_hook)
+register_hook("PostModelCall", context_usage_hook)
 register_hook("OnThinking", show_thinking_hook)
 register_hook("PreToolUse", permission_hook)
 register_hook("PreToolUse", log_hook)
