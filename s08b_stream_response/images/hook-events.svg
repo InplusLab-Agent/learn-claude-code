@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 440" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow"       viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#555"/></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"/></marker>
+    <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="820" height="440" fill="#fafbfc" rx="8"/>
+
+  <!-- header -->
+  <rect x="0" y="0" width="820" height="48" fill="url(#hdr)" rx="8"/>
+  <rect x="0" y="40" width="820" height="8" fill="url(#hdr)"/>
+  <text x="410" y="31" fill="#fff" font-size="16" font-weight="700" text-anchor="middle">s08b 新增 Hook 事件 — API stream 事件 → Hook 路由 → 实时显示</text>
+
+  <!-- column headers -->
+  <text x="175" y="70" fill="#475569" font-size="11" font-weight="700" text-anchor="middle">Anthropic API 流式事件</text>
+  <text x="490" y="70" fill="#166534" font-size="11" font-weight="700" text-anchor="middle">触发的 Hook 事件</text>
+  <text x="720" y="70" fill="#1e40af" font-size="11" font-weight="700" text-anchor="middle">终端输出</text>
+  <line x1="30" y1="76" x2="790" y2="76" stroke="#e2e8f0" stroke-width="1"/>
+
+  <!-- ── ROW 1: thinking start ── -->
+  <!-- API event -->
+  <rect x="30"  y="84" width="290" height="40" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="175" y="99"  fill="#92400e" font-size="10" font-weight="700" text-anchor="middle">content_block_start</text>
+  <text x="175" y="116" fill="#92400e" font-size="9"  text-anchor="middle">content_block.type = "thinking"</text>
+  <!-- arrow -->
+  <line x1="320" y1="104" x2="348" y2="104" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <!-- Hook event -->
+  <rect x="350" y="84" width="230" height="40" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="465" y="99"  fill="#166534" font-size="11" font-weight="700" text-anchor="middle">OnThinkingStart</text>
+  <text x="465" y="116" fill="#166534" font-size="9"  text-anchor="middle">stream_thinking_start_hook()</text>
+  <!-- arrow -->
+  <line x1="580" y1="104" x2="608" y2="104" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <!-- Output -->
+  <rect x="610" y="84" width="180" height="40" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="700" y="99"  fill="#1e40af" font-size="10" font-family="monospace" text-anchor="middle">"\n▷ Thinking: "</text>
+  <text x="700" y="116" fill="#64748b" font-size="8"  text-anchor="middle">grey ANSI colour opens</text>
+
+  <!-- ── ROW 2: thinking delta ── -->
+  <rect x="30"  y="136" width="290" height="40" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="175" y="151" fill="#92400e" font-size="10" font-weight="700" text-anchor="middle">content_block_delta</text>
+  <text x="175" y="168" fill="#92400e" font-size="9"  text-anchor="middle">delta.type = "thinking_delta"  × N</text>
+  <line x1="320" y1="156" x2="348" y2="156" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="350" y="136" width="230" height="40" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="465" y="151" fill="#166534" font-size="11" font-weight="700" text-anchor="middle">OnThinkingDelta(chunk)</text>
+  <text x="465" y="168" fill="#166534" font-size="9"  text-anchor="middle">stream_thinking_delta_hook(chunk)</text>
+  <line x1="580" y1="156" x2="608" y2="156" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="610" y="136" width="180" height="40" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="700" y="151" fill="#1e40af" font-size="10" font-family="monospace" text-anchor="middle">sys.stdout.write(chunk)</text>
+  <text x="700" y="168" fill="#64748b" font-size="8"  text-anchor="middle">思考文字逐字流出</text>
+
+  <!-- ── ROW 3: block stop (thinking) ── -->
+  <rect x="30"  y="188" width="290" height="40" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="175" y="203" fill="#92400e" font-size="10" font-weight="700" text-anchor="middle">content_block_stop</text>
+  <text x="175" y="220" fill="#92400e" font-size="9"  text-anchor="middle">(thinking block ends)</text>
+  <line x1="320" y1="208" x2="348" y2="208" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="350" y="188" width="230" height="40" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="465" y="203" fill="#166534" font-size="11" font-weight="700" text-anchor="middle">OnBlockStop("thinking")</text>
+  <text x="465" y="220" fill="#166534" font-size="9"  text-anchor="middle">stream_block_stop_hook("thinking")</text>
+  <line x1="580" y1="208" x2="608" y2="208" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="610" y="188" width="180" height="40" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="700" y="203" fill="#1e40af" font-size="10" font-family="monospace" text-anchor="middle">ANSI_RESET + "\n"</text>
+  <text x="700" y="220" fill="#64748b" font-size="8"  text-anchor="middle">颜色重置 + 换行</text>
+
+  <!-- divider -->
+  <line x1="30" y1="238" x2="790" y2="238" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,4"/>
+
+  <!-- ── ROW 4: text start ── -->
+  <rect x="30"  y="248" width="290" height="40" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="175" y="263" fill="#92400e" font-size="10" font-weight="700" text-anchor="middle">content_block_start</text>
+  <text x="175" y="280" fill="#92400e" font-size="9"  text-anchor="middle">content_block.type = "text"</text>
+  <line x1="320" y1="268" x2="348" y2="268" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="350" y="248" width="230" height="40" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="465" y="263" fill="#166534" font-size="11" font-weight="700" text-anchor="middle">OnTextStart</text>
+  <text x="465" y="280" fill="#166534" font-size="9"  text-anchor="middle">stream_text_start_hook()</text>
+  <line x1="580" y1="268" x2="608" y2="268" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="610" y="248" width="180" height="40" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="700" y="263" fill="#1e40af" font-size="10" font-family="monospace" text-anchor="middle">"\n" + ANSI_BLUE</text>
+  <text x="700" y="280" fill="#64748b" font-size="8"  text-anchor="middle">蓝色 ANSI 开启</text>
+
+  <!-- ── ROW 5: text delta ── -->
+  <rect x="30"  y="300" width="290" height="40" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="175" y="315" fill="#92400e" font-size="10" font-weight="700" text-anchor="middle">content_block_delta</text>
+  <text x="175" y="332" fill="#92400e" font-size="9"  text-anchor="middle">delta.type = "text_delta"  × N</text>
+  <line x1="320" y1="320" x2="348" y2="320" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="350" y="300" width="230" height="40" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="465" y="315" fill="#166534" font-size="11" font-weight="700" text-anchor="middle">OnTextDelta(chunk)</text>
+  <text x="465" y="332" fill="#166534" font-size="9"  text-anchor="middle">stream_text_delta_hook(chunk)</text>
+  <line x1="580" y1="320" x2="608" y2="320" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="610" y="300" width="180" height="40" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="700" y="315" fill="#1e40af" font-size="10" font-family="monospace" text-anchor="middle">sys.stdout.write(chunk)</text>
+  <text x="700" y="332" fill="#64748b" font-size="8"  text-anchor="middle">回复文字逐字流出</text>
+
+  <!-- ── ROW 6: block stop (text) ── -->
+  <rect x="30"  y="352" width="290" height="40" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="175" y="367" fill="#92400e" font-size="10" font-weight="700" text-anchor="middle">content_block_stop</text>
+  <text x="175" y="384" fill="#92400e" font-size="9"  text-anchor="middle">(text block ends)</text>
+  <line x1="320" y1="372" x2="348" y2="372" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="350" y="352" width="230" height="40" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="465" y="367" fill="#166534" font-size="11" font-weight="700" text-anchor="middle">OnBlockStop("text")</text>
+  <text x="465" y="384" fill="#166534" font-size="9"  text-anchor="middle">stream_block_stop_hook("text")</text>
+  <line x1="580" y1="372" x2="608" y2="372" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="610" y="352" width="180" height="40" rx="6" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <text x="700" y="367" fill="#1e40af" font-size="10" font-family="monospace" text-anchor="middle">ANSI_RESET + "\n"</text>
+  <text x="700" y="384" fill="#64748b" font-size="8"  text-anchor="middle">颜色重置 + 换行</text>
+
+  <!-- bottom note -->
+  <rect x="30" y="404" width="760" height="24" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="410" y="420" fill="#64748b" font-size="9" text-anchor="middle">tool_use 和 input_json_delta 事件被 stream.py 静默忽略 — 由 get_final_message() 完整返回，agent_loop 照常处理</text>
+</svg>

@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 480" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow"       viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#555"/></marker>
+    <marker id="arrow-blue"  viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2563eb"/></marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"/></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#16a34a"/></marker>
+    <linearGradient id="hdr" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="820" height="480" fill="#fafbfc" rx="8"/>
+
+  <!-- header -->
+  <rect x="0" y="0" width="820" height="48" fill="url(#hdr)" rx="8"/>
+  <rect x="0" y="40" width="820" height="8" fill="url(#hdr)"/>
+  <text x="410" y="31" fill="#fff" font-size="16" font-weight="700" text-anchor="middle">Stream Response — create_message() 两条路径，同一返回值</text>
+
+  <!-- legend -->
+  <text x="56" y="70" fill="#94a3b8" font-size="11" font-weight="600">s08 保留</text>
+  <text x="660" y="70" fill="#d97706" font-size="11" font-weight="600">s08b 新增</text>
+
+  <!-- ========= TOP: entry point (shared) ========= -->
+  <rect x="295" y="58" width="230" height="36" rx="8" fill="#f0f4ff" stroke="#2563eb" stroke-width="2"/>
+  <text x="410" y="81" fill="#1e3a5f" font-size="13" font-weight="700" text-anchor="middle">create_message(**kwargs)</text>
+
+  <!-- fork arrows -->
+  <path d="M 365 94 L 200 118" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#arrow-blue)"/>
+  <text x="248" y="111" fill="#2563eb" font-size="10" font-weight="700">false</text>
+
+  <path d="M 455 94 L 620 118" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#arrow-amber)"/>
+  <text x="552" y="111" fill="#d97706" font-size="10" font-weight="700">true</text>
+
+  <text x="410" y="110" fill="#94a3b8" font-size="9" text-anchor="middle">streaming.enabled</text>
+
+  <!-- ========= LEFT PANEL: BATCH ========= -->
+  <rect x="30" y="120" width="300" height="216" rx="10" fill="#f0f4ff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="180" y="142" fill="#94a3b8" font-size="10" font-weight="600" text-anchor="middle">批量模式 (默认)</text>
+
+  <!-- client.messages.create() -->
+  <rect x="56" y="154" width="248" height="34" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="180" y="176" fill="#1e40af" font-size="11" font-weight="700" text-anchor="middle">client.messages.create()</text>
+
+  <!-- blocking wait -->
+  <line x1="180" y1="188" x2="180" y2="255" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-blue)"/>
+  <text x="194" y="228" fill="#94a3b8" font-size="9">阻塞等待响应...</text>
+
+  <!-- Message result -->
+  <rect x="90" y="257" width="180" height="34" rx="6" fill="#2563eb"/>
+  <text x="180" y="279" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">Message</text>
+
+  <!-- down to convergence -->
+  <line x1="180" y1="291" x2="180" y2="398" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-blue)"/>
+
+  <!-- ========= RIGHT PANEL: STREAMING ========= -->
+  <rect x="490" y="120" width="300" height="290" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+  <text x="640" y="142" fill="#d97706" font-size="10" font-weight="600" text-anchor="middle">流式模式 (s08b 新增)</text>
+
+  <!-- client.messages.stream() -->
+  <rect x="514" y="154" width="252" height="34" rx="6" fill="#fde68a" stroke="#d97706" stroke-width="1.5"/>
+  <text x="640" y="176" fill="#92400e" font-size="11" font-weight="700" text-anchor="middle">client.messages.stream()</text>
+
+  <line x1="640" y1="188" x2="640" y2="204" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+
+  <!-- events box -->
+  <rect x="514" y="206" width="252" height="128" rx="6" fill="#fff7ed" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="640" y="222" fill="#166534" font-size="9" font-weight="700" text-anchor="middle">Hook 事件 (每个 chunk 立即触发)</text>
+  <text x="526" y="238" fill="#16a34a" font-size="9">OnThinkingStart</text>   <text x="752" y="238" fill="#94a3b8" font-size="8" text-anchor="end">▷ 打印思考前缀</text>
+  <text x="526" y="253" fill="#16a34a" font-size="9">OnThinkingDelta × N</text><text x="752" y="253" fill="#94a3b8" font-size="8" text-anchor="end">▷ 逐字输出思考</text>
+  <text x="526" y="268" fill="#16a34a" font-size="9">OnBlockStop("thinking")</text><text x="752" y="268" fill="#94a3b8" font-size="8" text-anchor="end">▷ 换行 + 重置颜色</text>
+  <text x="526" y="285" fill="#16a34a" font-size="9">OnTextStart</text>        <text x="752" y="285" fill="#94a3b8" font-size="8" text-anchor="end">▷ 开启蓝色</text>
+  <text x="526" y="300" fill="#16a34a" font-size="9">OnTextDelta × N</text>    <text x="752" y="300" fill="#94a3b8" font-size="8" text-anchor="end">▷ 逐字输出文本</text>
+  <text x="526" y="315" fill="#16a34a" font-size="9">OnBlockStop("text")</text> <text x="752" y="315" fill="#94a3b8" font-size="8" text-anchor="end">▷ 换行 + 重置颜色</text>
+
+  <line x1="640" y1="334" x2="640" y2="352" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+
+  <!-- get_final_message -->
+  <rect x="550" y="354" width="180" height="26" rx="6" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+  <text x="640" y="372" fill="#92400e" font-size="10" font-weight="600" text-anchor="middle">stream.get_final_message()</text>
+
+  <!-- down to Message -->
+  <line x1="640" y1="380" x2="640" y2="394" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+
+  <!-- ========= CONVERGENCE ========= -->
+  <rect x="270" y="400" width="280" height="46" rx="10" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text x="410" y="420" fill="#334155" font-size="12" font-weight="700" text-anchor="middle">Message (同一类型)</text>
+  <text x="410" y="436" fill="#64748b" font-size="9" text-anchor="middle">agent_loop 无需感知模式差异，行为不变</text>
+
+  <!-- streaming side down to convergence -->
+  <line x1="640" y1="410" x2="552" y2="413" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-amber)"/>
+</svg>
