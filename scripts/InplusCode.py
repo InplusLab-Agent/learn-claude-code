@@ -12,15 +12,16 @@ except ImportError:
 
 from utils.tools import TOOLS, TOOL_HANDLERS
 from utils.hooks import trigger_hooks
-from utils.system import SYSTEM, MODEL, client
+from utils.system import SYSTEM, MODEL, load_config
 from utils.context_compact import c1_snip_compact, c2_micro_compact, c3_tool_result_budget, c4_compact_history
 from utils.context_compact import reactive_compact, estimate_size, COMPACT_CHAR_LIMIT
+
+# from utils.stream import create_message
+import utils.stream as stream
 from rich import print
 
 rounds_since_todo = 0
-# ═══════════════════════════════════════════════════════════
-#  agent_loop — s08 core: run compaction pipeline before LLM
-# ═══════════════════════════════════════════════════════════
+
 
 MAX_REACTIVE_RETRIES = 1  # retry limit for reactive compact
 
@@ -34,7 +35,9 @@ def agent_loop(messages: list):
         if rounds_since_todo >= 3 and messages:
             messages.append({"role": "user", "content": "<reminder>Update your todos.</reminder>"}) # fmt: skip
             rounds_since_todo = 0
-
+        # ═══════════════════════════════════════════════════════════
+        #  agent_loop — s08 core: run compaction pipeline before LLM
+        # ═══════════════════════════════════════════════════════════
         # s08 change: three preprocessors (0 API calls, cheap first)
         # Order matches CC source: budget → snip → micro
         # messages[:] = c3_tool_result_budget(messages)  # L3: persist large results first
@@ -47,7 +50,8 @@ def agent_loop(messages: list):
             messages[:] = c4_compact_history(messages)
 
         try:
-            response = client.messages.create(model=MODEL,system=SYSTEM,messages=messages,tools=TOOLS,max_tokens=15000,timeout=180,) # fmt: skip
+            # response = client.messages.create(model=MODEL,system=SYSTEM,messages=messages,tools=TOOLS,max_tokens=15000,timeout=180,) # fmt: skip
+            response = stream.create_message(model=MODEL, system=SYSTEM, messages=messages, tools=TOOLS, max_tokens=15000, timeout=180)  # fmt: skip
             reactive_retries = 0  # reset on successful API call
         except Exception as e:
             if ("prompt_too_long" in str(e).lower() or "too many tokens" in str(e).lower()) and reactive_retries < MAX_REACTIVE_RETRIES: # fmt: skip
@@ -69,13 +73,15 @@ def agent_loop(messages: list):
             # Execute each tool call, collect results
             for block in response.content:
 
-                if block.type == "thinking":
-                    trigger_hooks("OnThinking", block)
+                # if block.type == "thinking":
+                #     trigger_hooks("OnThinking", block)
 
-                elif block.type == "text":
-                    print(f"[blue]{block.text}[/blue]\n")
+                # elif block.type == "text":
+                #     # Skip: streaming already printed this live via OnTextDelta
+                #     if not load_config().get("streaming", {}).get("enabled", False):
+                #         print(f"[blue]{block.text}[/blue]\n")
 
-                elif block.type == "tool_use":
+                if block.type == "tool_use":
 
                     # s08: compact tool triggers compact_history, not a no-op string
                     if block.name == "compact":
@@ -154,9 +160,9 @@ if __name__ == "__main__":
             break
         history.append({"role": "user", "content": query})
         agent_loop(history)
-        # Print the model's final text response
+        # Print the model's final text response (batch mode only; streaming already printed it live)
         response_content = history[-1]["content"]
-        if isinstance(response_content, list):
+        if isinstance(response_content, list) and not load_config().get("streaming", {}).get("enabled", False):
             for block in response_content:
                 if getattr(block, "type", None) == "text":
                     print(f"\n{block.text}")

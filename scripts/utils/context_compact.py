@@ -262,7 +262,7 @@ def _summarize_history(messages: list[dict]):
         "Preserve: 1. current goal, 2. key findings/decisions, 3. files read/changed, "
         "4. remaining work, 5. user constraints.\nBe compact but concrete.\n\n" + conversation
     )
-    response = client.messages.create(model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=2000)
+    response = client.messages.create(model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=6000)
     # return ("\n".join(getattr(block, "text", "") for block in response.content if getattr(block, "type", None) == "text").strip() or "(empty summary)") # fmt: skip
     return "\n".join(block.text for block in response.content if isinstance(block, TextBlock)).strip() or "(empty summary)"
 

@@ -62,7 +62,6 @@ from typing_extensions import deprecated
 from anthropic.types import Message, ToolUseBlock
 
 from utils.system import WORKDIR, load_config
-from utils.context_compact import estimate_size
 
 # ────────────── DENY / RISK command LIST ───────────────────────────────────────────
 # 高风险但不一定绝对禁止：命中后需要进一步询问/确认/拦截
@@ -118,9 +117,11 @@ else:
         "| bash",  # 下载内容后直接交给 bash 执行
         "| sh",  # 下载内容后直接交给 sh 执行
     ]
+
+
 HOOKS = {
     "UserPromptSubmit": [],
-    "OnThinking": [],
+    # "OnThinking": [],  # deprecated: fired with full ThinkingBlock after API returns
     "PreToolUse": [],
     "PostToolUse": [],
     "PostResponse": [],
@@ -141,11 +142,14 @@ def trigger_hooks(event: str, *args):
 
 
 # ═══════════ OnThinking ══════════════════════════════════════
-# 打印思考痕迹
+# 打印思考痕迹 (batch 模式；streaming 模式下由 OnStreamThinkingDelta 实时展示)
+@deprecated("[已弃用] 使用流式输出代替。(since: 2026-07-20)")
 def show_thinking_hook(block) -> None:
     config = load_config()
+    # Skip when streaming already displayed thinking live via OnStreamThinkingDelta
+    if config.get("streaming", {}).get("enabled", False):
+        return None
     if config.get("show_thinking", True):  # 是否打印思考过程
-        # print(f"[HOOK] Thinking: [blue]{block.thinking}[/blue]\n")
         print(f"[HOOK] [grey93]Thinking: {block.thinking}[/grey93]\n")
     return None
 
@@ -299,11 +303,15 @@ def summary_hook(response: Message) -> str | None:
         return None
 
 
+
+
 register_hook("UserPromptSubmit", context_inject_hook)
-register_hook("OnThinking", show_thinking_hook)
+# register_hook("OnThinking", show_thinking_hook)  # depreacted
 register_hook("PreToolUse", permission_hook)
 register_hook("PreToolUse", log_hook)
 register_hook("PostToolUse", large_output_hook)
 register_hook("PostToolUse", show_tool_use_hook)
 register_hook("PostResponse", context_usage_hook)
 register_hook("Stop", summary_hook)
+
+
