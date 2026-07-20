@@ -212,8 +212,6 @@ def spawn_subagent(description: str) -> str:
                         output = f"Error: {e}"
 
                     trigger_hooks("PostToolUse", block, output)  # s04: post hook
-                    # print(f"  [bright_black][sub] {block.name}: {str(output)[:100]}[/bright_black]") # fmt: skip
-
                     results.append(
                         {
                             "type": "tool_result",

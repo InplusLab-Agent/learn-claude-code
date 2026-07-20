@@ -32,28 +32,6 @@ client = Anthropic(
 skill_registry = SkillRegistry(WORKDIR)
 skill_registry.scan_skills()
 
-
-# SYSTEM = (
-#     f"You are a coding agent at {WORKDIR}. "
-#     "For complex sub-problems, use the task tool to spawn a subagent."
-# )
-
-# SUB_SYSTEM = (
-#     f"You are a coding agent at {WORKDIR}. "
-#     "Complete the task you were given, then return a concise summary. "
-#     "Do not delegate further."
-# )
-
-
-# deprecated: since 2026-07-17
-# SYSTEM_legacy = (
-#     f"You are a coding agent at {WORKDIR}. "
-#     f"The bash tool executes commands with {SHELL};"
-#     "For multi-step task, use todo_write to plan your steps. "
-#     "Update todo status as you work;"
-#     "For complex sub-problems, use the task tool to spawn a subagent."
-# )
-
 _catalog = skill_registry.list_skills()
 
 # s07: Build SYSTEM prompt with skill catalog injected at startup.

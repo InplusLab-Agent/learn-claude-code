@@ -121,7 +121,6 @@ else:
 
 HOOKS = {
     "UserPromptSubmit": [],
-    # "OnThinking": [],  # deprecated: fired with full ThinkingBlock after API returns
     "PreToolUse": [],
     "PostToolUse": [],
     "PostResponse": [],
@@ -138,19 +137,6 @@ def trigger_hooks(event: str, *args):
         result = callback(*args)
         if result is not None:  # teaching shortcut: block this tool call
             return result
-    return None
-
-
-# ═══════════ OnThinking ══════════════════════════════════════
-# 打印思考痕迹 (batch 模式；streaming 模式下由 OnStreamThinkingDelta 实时展示)
-@deprecated("[已弃用] 使用流式输出代替。(since: 2026-07-20)")
-def show_thinking_hook(block) -> None:
-    config = load_config()
-    # Skip when streaming already displayed thinking live via OnStreamThinkingDelta
-    if config.get("streaming", {}).get("enabled", False):
-        return None
-    if config.get("show_thinking", True):  # 是否打印思考过程
-        print(f"[HOOK] [grey93]Thinking: {block.thinking}[/grey93]\n")
     return None
 
 
@@ -194,13 +180,6 @@ def permission_hook(block) -> str | None:
             if choice not in ("y", "yes"):
                 return "Permission denied by user"
     return None  #  None: 表示允许工具调用继续
-
-
-@deprecated("[已弃用] (since: 2026-07-17)")
-def log_hook_legacy(block):
-    args_preview = str(list(block.input.values())[:2])[:60]
-    print(f"[HOOK] {block.name}({args_preview})")
-    return None
 
 
 # log every tool call.
@@ -276,20 +255,6 @@ def context_inject_hook(query: str):
 
 
 # ═════════════ Stop ══════════════════════════════════════
-# print summary when loop is about to exit
-@deprecated("[已弃用] 请采用传入 response参数的方法。")
-def summary_hook_legacy(messages: list):
-    tool_count = sum(
-        1
-        for m in messages
-        for b in (m.get("content") if isinstance(m.get("content"), list) else [])
-        if isinstance(b, dict) and b.get("type") == "tool_result"
-    )
-    messages.get("content")
-    print(f"[HOOK] Stop: session used {tool_count} tool calls")
-    return None
-
-
 # 根据 response 的 stop_reason 决定是否强制继续 Loop
 def summary_hook(response: Message) -> str | None:
     if response.stop_reason == "end_turn":
@@ -303,15 +268,10 @@ def summary_hook(response: Message) -> str | None:
         return None
 
 
-
-
 register_hook("UserPromptSubmit", context_inject_hook)
-# register_hook("OnThinking", show_thinking_hook)  # depreacted
 register_hook("PreToolUse", permission_hook)
 register_hook("PreToolUse", log_hook)
 register_hook("PostToolUse", large_output_hook)
 register_hook("PostToolUse", show_tool_use_hook)
 register_hook("PostResponse", context_usage_hook)
 register_hook("Stop", summary_hook)
-
-

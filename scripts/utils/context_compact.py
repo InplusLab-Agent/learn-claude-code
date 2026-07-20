@@ -36,12 +36,8 @@ from anthropic.types import ContentBlock, TextBlock
 from utils.system import TOOL_RESULTS_DIR, MESSAGES_DIR, MODEL, client
 
 MAX_MESSAGES = 100  # C1
-
 PERSIST_THRESHOLD = 30000  # C3: 超过该字节数的 tool_result 将被持久化到磁盘
-
-# KEEP_RECENT = 3  # C2: 允许最近3条tool_result超长保留
 KEEP_RECENT = 20  # C2: 允许最近3条tool_result超长保留
-# CONTEXT_LIMIT = 50000
 COMPACT_CHAR_LIMIT = 400_000  # C4: 上下文最大字符数
 
 
@@ -68,7 +64,6 @@ def _message_has_tool_result(message: dict) -> bool:
     results = message.get("content")
     if not isinstance(results, list): return False # fmt: skip
     return any(_block_type(block) == "tool_result" for block in results)
-    # return any(isinstance(block, dict) and block.get("type") == "tool_result" for block in results)
 
 
 # assistant message
@@ -124,19 +119,6 @@ def c1_snip_compact(messages: list[dict], max_messages=MAX_MESSAGES) -> list[dic
 # ═══════════════════════════════════════════════════════════
 
 
-@deprecated("[已废弃] 使用更简洁的 _collect_tool_results (since: 2026-07-19)")
-def _collect_tool_results_legacy(messages: list[dict]):
-    blocks = []
-    for mi, msg in enumerate(messages):
-        if msg.get("role") != "user" or not isinstance(msg.get("content"), list):
-            continue
-        for bi, block in enumerate(msg["content"]):  # msg["contents"] 即 results
-            # if isinstance(block, dict) and block.get("type") == "tool_result":
-            if _block_type(block) == "tool_result":
-                blocks.append((mi, bi, block))
-    return blocks
-
-
 # user message
 def _collect_tool_results(messages: list[dict]) -> list[dict]:
     blocks = []
@@ -177,28 +159,6 @@ def _persist_large_output(tool_use_id, content) -> str:  # 将大工具调用的
     return f"<persisted-output>\nFull output: {path}\nPreview:\n{content[:2000]}\n</persisted-output>"
 
 
-@deprecated("[已弃用]  (since: 2026-07-19)")
-def tool_result_budget_legacy(messages: list[dict], max_bytes=200_000):
-    last = messages[-1] if messages else None
-    if not last or last.get("role") != "user" or not isinstance(last.get("content"), list):
-        return messages
-    blocks = [(i, block) for i, block  in enumerate(last["content"]) if isinstance(block, dict) and block.get("type") == "tool_result"] # fmt: skip
-    total = sum(len(str(b.get("content", ""))) for _, b in blocks)
-    if total <= max_bytes:
-        return messages
-    ranked = sorted(blocks, key=lambda p: len(str(p[1].get("content", ""))), reverse=True) # fmt: skip
-    for _, block in ranked:
-        if total <= max_bytes:
-            break
-        content = str(block.get("content", ""))
-        if len(content) <= PERSIST_THRESHOLD:
-            continue
-        tid = block.get("tool_use_id", "unknown")
-        block["content"] = _persist_large_output(tid, content)
-        total = sum(len(str(b.get("content", ""))) for _, b in blocks)
-    return messages
-
-
 # C3: 检查对话历史最后一条消息的 tool_results，优先持久化、并替换体积较大的 tool_result 块。
 def c3_tool_result_budget(messages: list[dict], max_bytes=200_000):
 
@@ -208,7 +168,6 @@ def c3_tool_result_budget(messages: list[dict], max_bytes=200_000):
     if not last or last.get("role") != "user" or not isinstance(last.get("content"), list):
         return messages
 
-    # blocks = [(i, block) for i, block  in enumerate(last["content"]) if isinstance(block, dict) and block.get("type") == "tool_result"] # fmt: skip
     tool_results = _collect_tool_results([last])
 
     total = sum(len(str(block.get("content", ""))) for block in tool_results)
@@ -251,7 +210,6 @@ def _persist_messages(messages: list[dict]) -> Path:
 
 # 让 LLM 总结历史
 def _summarize_history(messages: list[dict]):
-    # conversation = json.dumps(messages, default=str)[:80000]  # 将消息序列化并截断
 
     # 原版写法截断方向可能不合理，改成首尾拼接
     conversation = serialized = json.dumps(messages, default=str, ensure_ascii=False)
@@ -263,7 +221,6 @@ def _summarize_history(messages: list[dict]):
         "4. remaining work, 5. user constraints.\nBe compact but concrete.\n\n" + conversation
     )
     response = client.messages.create(model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=6000)
-    # return ("\n".join(getattr(block, "text", "") for block in response.content if getattr(block, "type", None) == "text").strip() or "(empty summary)") # fmt: skip
     return "\n".join(block.text for block in response.content if isinstance(block, TextBlock)).strip() or "(empty summary)"
 
 

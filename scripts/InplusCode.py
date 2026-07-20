@@ -49,7 +49,6 @@ def agent_loop(messages: list):
             messages[:] = c4_compact_history(messages)
 
         try:
-            # response = client.messages.create(model=MODEL,system=SYSTEM,messages=messages,tools=TOOLS,max_tokens=15000,timeout=180,) # fmt: skip
             response = stream.create_message(model=MODEL, system=SYSTEM, messages=messages, tools=TOOLS, max_tokens=15000, timeout=180)  # fmt: skip
             reactive_retries = 0  # reset on successful API call
         except Exception as e:
@@ -71,15 +70,6 @@ def agent_loop(messages: list):
 
             # Execute each tool call, collect results
             for block in response.content:
-
-                # if block.type == "thinking":
-                #     trigger_hooks("OnThinking", block)
-
-                # elif block.type == "text":
-                #     # Skip: streaming already printed this live via OnTextDelta
-                #     if not load_config().get("streaming", {}).get("enabled", False):
-                #         print(f"[blue]{block.text}[/blue]\n")
-
                 if block.type == "tool_use":
 
                     # s08: compact tool triggers compact_history, not a no-op string
@@ -92,7 +82,6 @@ def agent_loop(messages: list):
                                 "content": "[Compacted. Conversation history has been summarized.]",
                             }
                         )
-                        # messages.append({"role": "user", "content": results})
                         break  # end current turn, start fresh with compacted context
 
                     # 是否启用拦截风险
@@ -159,10 +148,4 @@ if __name__ == "__main__":
             break
         history.append({"role": "user", "content": query})
         agent_loop(history)
-        # Print the model's final text response (batch mode only; streaming already printed it live)
-        # response_content = history[-1]["content"]
-        # if isinstance(response_content, list) and not load_config().get("streaming", {}).get("enabled", False):
-        #     for block in response_content:
-        #         if getattr(block, "type", None) == "text":
-        #             print(f"\n{block.text}")
         print()
