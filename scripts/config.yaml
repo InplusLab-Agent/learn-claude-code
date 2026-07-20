@@ -1,5 +1,11 @@
 show_thinking: true
 show_tool_use: false
+
+streaming:
+  # enabled: true          # set true to stream response tokens live
+  show_thinking: true     # show thinking chunks while streaming
+  show_text: true         # show text chunks while streaming
+
 paths:
   workspace: D:\--UnityProject\RunminG-Lab\learn-claude-code\scripts
 permission:
