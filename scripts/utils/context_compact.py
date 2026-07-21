@@ -31,9 +31,11 @@ Four-layer compaction pipeline inserted before LLM calls:
 import json, time
 
 from pathlib import Path
+from rich import print
 from typing_extensions import deprecated
 from anthropic.types import ContentBlock, TextBlock
-from utils.system import TOOL_RESULTS_DIR, MESSAGES_DIR, MODEL, client
+from utils.system import TOOL_RESULTS_DIR, MESSAGES_DIR, MODEL
+import utils.stream as stream
 
 MAX_MESSAGES = 100  # C1
 
@@ -258,19 +260,23 @@ def _summarize_history(messages: list[dict]):
     if len(serialized) > 80000:
         conversation = serialized[:30000] + "\n...[truncated]...\n" + serialized[-50000:]
     prompt = (
-        "Summarize this coding-agent conversation so work can continue.\n"
+        # "Summarize this coding-agent conversation so work can continue.\n"
+        "Summarize this coding-agent conversation. "
+        "Decide and recode whether work should stop after compaction.\n"
         "Preserve: 1. current goal, 2. key findings/decisions, 3. files read/changed, "
         "4. remaining work, 5. user constraints.\nBe compact but concrete.\n\n" + conversation
     )
-    response = client.messages.create(model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=6000)
+    # response = client.messages.create(model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=6000)
+    response = stream.create_message(model=MODEL, messages=[{"role": "user", "content": prompt}], max_tokens=6000)  # fmt: skip
+
     # return ("\n".join(getattr(block, "text", "") for block in response.content if getattr(block, "type", None) == "text").strip() or "(empty summary)") # fmt: skip
-    return "\n".join(block.text for block in response.content if isinstance(block, TextBlock)).strip() or "(empty summary)"
+    return "\n".join(block.text for block in response.content if isinstance(block, TextBlock)).strip() or "(empty summary)", response
 
 
 # C4 entry point
-def c4_compact_history(messages: list[dict]):
+def c4_compact_history(messages: list[dict]) -> list[dict]:
     message_path = _persist_messages(messages)
-    print(f"[message saved: {message_path}]")
+    print(f"\n[cyan]\\[message saved: {message_path}][/cyan]")
     summary = _summarize_history(messages)
     return [{"role": "user", "content": f"[Compacted] Conversation history has been summarized. \n\n{summary}"}]
 

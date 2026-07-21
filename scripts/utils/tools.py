@@ -5,7 +5,8 @@ from utils.shell import run_shell
 
 from rich import print
 from utils.hooks import trigger_hooks
-from utils.system import SUB_SYSTEM, MODEL, WORKDIR, client, skill_registry
+from utils.system import MODEL, WORKDIR, SYSTEM, skill_registry
+import utils.stream as stream
 
 """
   +---------+      +-------+      +------------------+
@@ -92,7 +93,8 @@ def run_glob(pattern: str) -> str:
 
     try:
         results = []
-        for match in g.glob(pattern, root_dir=WORKDIR):
+        # for match in g.glob(pattern, root_dir=WORKDIR):
+        for match in g.glob(pattern, root_dir=WORKDIR, include_hidden=True):  # 显示要求允许查找隐藏文件
             if (WORKDIR / match).resolve().is_relative_to(WORKDIR):
                 results.append(match)
         return "\n".join(results) if results else "(no matches)"
@@ -170,26 +172,28 @@ def spawn_subagent(description: str) -> str:
     messages = [{"role": "user", "content": description}]  # fresh context
 
     for _ in range(30):  # safety limit 限制 subagent 的最大推理请求次数不超过30
-        response = client.messages.create(
-            model=MODEL,
-            system=SUB_SYSTEM,
-            messages=messages,
-            tools=SUB_TOOLS,
-            max_tokens=8000,
-        )
+        # response = client.messages.create(
+        #     model=MODEL,
+        #     system=SUB_SYSTEM,
+        #     messages=messages,
+        #     tools=SUB_TOOLS,
+        #     max_tokens=8000,
+        # )
+        response = stream.create_message(model=MODEL, system=SYSTEM, messages=messages, tools=TOOLS, max_tokens=8000, timeout=30)  # fmt: skip
+
         messages.append({"role": "assistant", "content": response.content})
 
         results = []
         if response.stop_reason == "tool_use":
             for block in response.content:
 
-                if block.type == "thinking":
-                    trigger_hooks("OnThinking", block)
+                # if block.type == "thinking":
+                #     trigger_hooks("OnThinking", block)
 
-                elif block.type == "text":
-                    print(f"[blue]{block.text}[/blue]\n")
+                # elif block.type == "text":
+                #     print(f"[blue]{block.text}[/blue]\n")
 
-                elif block.type == "tool_use":
+                if block.type == "tool_use":
                     # Issue 1: subagent also runs hooks (permissions apply)
                     blocked = trigger_hooks("PreToolUse", block)
                     if blocked:
@@ -383,7 +387,8 @@ TOOLS = [
     # s08 change: new compact tool — triggers compact_history, not a no-op
     {
         "name": "compact",
-        "description": "Summarize earlier conversation to free context space.",
+        # "description": "Summarize earlier conversation to free context space.",
+        "description": "Compact earlier messages and consersation, and summarize them to free context space.",
         "input_schema": {"type": "object", "properties": {"focus": {"type": "string"}}},
     },
 ]

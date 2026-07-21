@@ -303,8 +303,6 @@ def summary_hook(response: Message) -> str | None:
         return None
 
 
-
-
 register_hook("UserPromptSubmit", context_inject_hook)
 # register_hook("OnThinking", show_thinking_hook)  # depreacted
 register_hook("PreToolUse", permission_hook)
@@ -313,5 +311,4 @@ register_hook("PostToolUse", large_output_hook)
 register_hook("PostToolUse", show_tool_use_hook)
 register_hook("PostResponse", context_usage_hook)
 register_hook("Stop", summary_hook)
-
-
+register_hook("Stop", context_usage_hook)

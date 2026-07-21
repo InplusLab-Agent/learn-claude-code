@@ -58,6 +58,7 @@ def agent_loop(messages: list):
                 messages[:] = reactive_compact(messages)
                 reactive_retries += 1
                 continue
+            # TODO: 异常捕获应该放进create_message里面
             raise
 
         # Append assistant turn
@@ -85,13 +86,13 @@ def agent_loop(messages: list):
                     # s08: compact tool triggers compact_history, not a no-op string
                     if block.name == "compact":
                         messages[:] = c4_compact_history(messages)
-                        results.append(
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": block.id,
-                                "content": "[Compacted. Conversation history has been summarized.]",
-                            }
-                        )
+                        # results.append(
+                        #     {
+                        #         "type": "tool_result",
+                        #         "tool_use_id": block.id,
+                        #         "content": "[Compacted. Conversation history has been summarized.]",
+                        #     }
+                        # )
                         # messages.append({"role": "user", "content": results})
                         break  # end current turn, start fresh with compacted context
 
@@ -133,8 +134,7 @@ def agent_loop(messages: list):
             else:  # 只有没有遇到 compact/break 时才执行
                 # Feed tool results back, loop continues
                 messages.append({"role": "user", "content": results})
-
-            trigger_hooks("PostResponse", response)
+                trigger_hooks("PostResponse", response)
 
         else:
             # TODO: fix the max_token bugs.
@@ -159,10 +159,4 @@ if __name__ == "__main__":
             break
         history.append({"role": "user", "content": query})
         agent_loop(history)
-        # Print the model's final text response (batch mode only; streaming already printed it live)
-        # response_content = history[-1]["content"]
-        # if isinstance(response_content, list) and not load_config().get("streaming", {}).get("enabled", False):
-        #     for block in response_content:
-        #         if getattr(block, "type", None) == "text":
-        #             print(f"\n{block.text}")
         print()
