@@ -236,3 +236,32 @@ analysis_progress.md
 # Scripts tmp directory
 scripts/tmp/
 /scripts/.inpluscode_cache
+
+# Unity
+# Generated folders (the Unity project lives under scripts/unity/AgentSandbox).
+/scripts/unity/AgentSandbox/[Ll]ibrary/
+/scripts/unity/AgentSandbox/[Tt]emp/
+/scripts/unity/AgentSandbox/[Oo]bj/
+/scripts/unity/AgentSandbox/[Bb]uild/
+/scripts/unity/AgentSandbox/[Bb]uilds/
+/scripts/unity/AgentSandbox/[Ll]ogs/
+/scripts/unity/AgentSandbox/[Uu]ser[Ss]ettings/
+/scripts/unity/AgentSandbox/[Mm]emoryCaptures/
+/scripts/unity/AgentSandbox/[Rr]ecordings/
+
+# Unity-generated IDE and crash-report files
+/scripts/unity/AgentSandbox/*.csproj
+/scripts/unity/AgentSandbox/*.sln
+/scripts/unity/AgentSandbox/*.suo
+/scripts/unity/AgentSandbox/*.tmp
+/scripts/unity/AgentSandbox/*.user
+/scripts/unity/AgentSandbox/*.userprefs
+/scripts/unity/AgentSandbox/*.pidb
+/scripts/unity/AgentSandbox/*.booproj
+/scripts/unity/AgentSandbox/*.svd
+/scripts/unity/AgentSandbox/*.pdb
+/scripts/unity/AgentSandbox/*.mdb
+/scripts/unity/AgentSandbox/*.opendb
+/scripts/unity/AgentSandbox/*.VC.db
+/scripts/unity/AgentSandbox/sysinfo.txt
+/scripts/unity/AgentSandbox/crashlytics-build.properties
