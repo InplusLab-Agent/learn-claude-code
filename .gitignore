@@ -265,3 +265,14 @@ scripts/tmp/
 /scripts/unity/AgentSandbox/*.VC.db
 /scripts/unity/AgentSandbox/sysinfo.txt
 /scripts/unity/AgentSandbox/crashlytics-build.properties
+
+# MCP-generated verification screenshots are test artifacts. New screenshots are
+# ignored by default; screenshots already committed stay tracked (a .gitignore
+# entry never un-tracks existing files).
+/scripts/unity/AgentSandbox/Assets/Screenshots/
+
+# Unity Agent local override & MCP server logs
+/scripts/unity_agent/local_config.yaml
+mcp-for-unity-server*.log
+*.mcp.log
+/scripts/unity/AgentSandbox
